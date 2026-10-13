@@ -1,8 +1,23 @@
-const CACHE_NAME = 'solarminas-relatorios-v3';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE_NAME = 'solarminas-relatorios-v4';
+const ASSETS = [
+  './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
+  // Módulo Inspeção SAS (PEE Copel): tudo local para funcionar em modo avião
+  './inspecao-sas.html',
+  './inspecao-sas/style.css',
+  './inspecao-sas/config.js',
+  './inspecao-sas/observations.js',
+  './inspecao-sas/db.js',
+  './inspecao-sas/images.js',
+  './inspecao-sas/report-docx.js',
+  './inspecao-sas/app.js',
+  './inspecao-sas/logo-solarminas.png',
+  './vendor/docx.min.js',
+  './vendor/docx-layout.min.js'
+];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
+  // cache: 'reload' evita gravar cópias antigas do cache HTTP do navegador
+  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })))));
   self.skipWaiting();
 });
 
@@ -14,8 +29,9 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then((cached) => {
+    caches.match(e.request, { ignoreSearch: e.request.mode === 'navigate' }).then((cached) => {
       const networkFetch = fetch(e.request)
         .then((resp) => {
           const respClone = resp.clone();

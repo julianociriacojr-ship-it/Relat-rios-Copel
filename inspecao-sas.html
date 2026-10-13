@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Inspeção SAS (PEE Copel) — Solar Minas</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B4A5C">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Solar Minas">
+<link rel="stylesheet" href="inspecao-sas/style.css">
+</head>
+<body>
+
+<header class="app">
+  <div class="brand">
+    <a class="back" id="back-btn" href="index.html" aria-label="Voltar">←</a>
+    <img class="logo-img" src="inspecao-sas/logo-solarminas.png" alt="Solar Minas">
+    <div class="titles">
+      <h1 id="title">Inspeção SAS (PEE Copel)</h1>
+      <p id="subtitle">Comunidades isoladas · litoral do Paraná</p>
+    </div>
+    <span class="save-state" id="save-state"></span>
+  </div>
+</header>
+
+<main id="view"></main>
+<div class="footer-bar" id="footer" style="display:none"></div>
+<div class="toast" id="toast"></div>
+
+<noscript>Este módulo precisa de JavaScript ativado.</noscript>
+
+<!-- Bibliotecas locais (sem CDN: funciona em modo avião) -->
+<script src="vendor/docx.min.js"></script>
+<script src="vendor/docx-layout.min.js"></script>
+<script src="inspecao-sas/config.js"></script>
+<script src="inspecao-sas/observations.js"></script>
+<script src="inspecao-sas/db.js"></script>
+<script src="inspecao-sas/images.js"></script>
+<script src="inspecao-sas/report-docx.js"></script>
+<script src="inspecao-sas/app.js"></script>
+<script>
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => { navigator.serviceWorker.register('service-worker.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
