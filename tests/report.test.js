@@ -5,8 +5,10 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 const JSZip = require('jszip');
-globalThis.docx = require('docx');
-globalThis.docxLayout = require('docx/layout');
+// Usa os mesmos arquivos que o navegador carrega (vendor/).
+const vm = require('vm');
+for (const f of ['docx.min.js', 'docx-layout.min.js'])
+  vm.runInThisContext(fs.readFileSync(path.join(__dirname, '..', 'vendor', f), 'utf8'));
 require('../inspecao-sas/config.js');
 require('../inspecao-sas/observations.js');
 const { buildReport, reportFileName } = require('../inspecao-sas/report-docx.js');
@@ -51,6 +53,10 @@ test('relatório completo', async () => {
   const footers = Object.keys(zip.files).filter(f => /word\/footer\d*\.xml/.test(f));
   const f = await zip.file(footers[0]).async('string');
   assert.match(f, /PAGE/); assert.match(f, /NUMPAGES/);
+  // Paginação estimada: sumário e índice já saem com número de página.
+  const visibleToc = visible.split('ÍNDICE DE ILUSTRAÇÕES')[0];
+  assert.match(visibleToc, /SUMÁRIO/);
+  assert.match(xml, /PAGEREF Figura_1[\s\S]*?<w:t[^>]*>6</);
 });
 
 test('fotos faltando viram placeholder', async () => {
