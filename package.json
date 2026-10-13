@@ -1,0 +1,14 @@
+{
+  "name": "solarminas-relatorios",
+  "private": true,
+  "description": "App de relatórios de campo Solar Minas (PWA estático). Dependências só para empacotar bibliotecas locais e testes.",
+  "scripts": {
+    "vendor": "node scripts/build-vendor.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "docx": "9.10.0",
+    "esbuild": "0.25.0",
+    "jszip": "^3.10.1"
+  }
+}
