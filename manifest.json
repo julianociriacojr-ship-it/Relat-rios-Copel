@@ -1,0 +1,17 @@
+{
+  "name": "Relatórios de Campo - Solar Minas",
+  "short_name": "Solar Minas",
+  "description": "RDO, Visita Técnica, Entrega de Serviço e OS Residencial - Solar Minas",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5F4F1",
+  "theme_color": "#0B4A5C",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
