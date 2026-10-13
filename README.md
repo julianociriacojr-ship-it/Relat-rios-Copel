@@ -1,6 +1,6 @@
 # Relatórios de Campo · Solar Minas
 
-PWA estático publicado no Netlify (`app-solar-minas.netlify.app`). Não tem etapa de build: a raiz do repositório é o site.
+PWA estático publicado no **GitHub Pages** pelo workflow `.github/workflows/pages.yml`. A cada push na `main`, ele roda os testes e publica só os arquivos do site, sem build. Endereço: `https://julianociriacojr-ship-it.github.io/Relat-rios-Copel/`. A versão antiga no Netlify (`app-solar-minas.netlify.app`) não recebe mais atualizações.
 
 | Arquivo | O que é |
 |---|---|
@@ -8,6 +8,7 @@ PWA estático publicado no Netlify (`app-solar-minas.netlify.app`). Não tem eta
 | `inspecao-sas.html` + `inspecao-sas/` | Módulo **Inspeção SAS (PEE Copel)**. |
 | `vendor/` | docx 9.10 minificado (gerador do Word + estimador de paginação). Local, sem CDN. |
 | `service-worker.js`, `manifest.json`, ícones | PWA. O cache inclui todos os arquivos do módulo novo. |
+| `.github/workflows/pages.yml` | Testa e publica no GitHub Pages. |
 | `CLAUDE.md` | Especificação do módulo. |
 
 ## Tarefa 0: leitura do app existente
@@ -35,7 +36,15 @@ npm test         # gera relatórios de exemplo em tests/out/ e valida a estrutur
 python3 -m http.server 8765   # abrir http://localhost:8765/
 ```
 
-Ao alterar qualquer arquivo publicado, aumente `CACHE_NAME` em `service-worker.js` para os aparelhos baixarem a versão nova.
+Na publicação, o workflow troca `CACHE_NAME` pelo commit publicado, então os celulares pegam a versão nova sozinhos, sem editar nada à mão. Na primeira abertura com internet depois de uma publicação, o app ainda mostra a versão anterior; na seguinte, já mostra a nova.
+
+### Ativar o GitHub Pages (uma vez)
+
+1. A branch `main` precisa existir com este código.
+2. No GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Em **Actions → Publicar no GitHub Pages**, rode o workflow (ou faça um push na `main`).
+
+A equipe precisa instalar o app de novo pelo endereço novo (Chrome: menu → Instalar app; iPhone/Safari: Compartilhar → Adicionar à Tela de Início). Os dados salvos no celular ficam presos ao endereço onde foram criados.
 
 ## Pendências (confirmar com o Juliano)
 

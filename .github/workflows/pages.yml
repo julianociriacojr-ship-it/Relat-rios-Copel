@@ -1,0 +1,59 @@
+# Publica o app no GitHub Pages a cada push na main.
+# Só os arquivos do site vão para o ar (sem testes, scripts ou package.json).
+name: Publicar no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Testes do gerador .docx
+        run: |
+          npm ci
+          npm test
+
+      - name: Montar pasta do site
+        run: |
+          mkdir -p _site
+          cp -r index.html inspecao-sas.html inspecao-sas vendor \
+                service-worker.js manifest.json icon-192.png icon-512.png _site/
+          # Versão do cache = commit publicado, para os celulares baixarem a
+          # versão nova sem precisar editar CACHE_NAME à mão.
+          sed -i "s/const CACHE_NAME = '[^']*'/const CACHE_NAME = 'solarminas-relatorios-${GITHUB_SHA::8}'/" _site/service-worker.js
+          grep -q "solarminas-relatorios-${GITHUB_SHA::8}" _site/service-worker.js
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
