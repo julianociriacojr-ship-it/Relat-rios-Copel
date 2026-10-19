@@ -56,7 +56,7 @@ A equipe precisa instalar o app de novo pelo endereço novo (Chrome: menu → In
 
 ## Pendências (confirmar com o Juliano)
 
-- Prefixos de 10 comunidades estão `null` em `config.js`. Enquanto isso, o código sai como `86204[PREFIXO A CONFIRMAR]01` e a revisão avisa. Pindoty está como `COT`, conforme o relatório COT01, e Tekuaty não pode repetir `COT`.
+- Prefixos de todas as comunidades definidos em 19/10/2026 em `config.js` (POE, COT, TEK, BDA, ARA, VFA, ABA, VRI, SIB, CAN, BDS, SDM). Não trocar depois de escrever as estacas.
 - As frases dos chips fora do caso "poço + bombeamento" estão marcadas `RASCUNHO` em `observations.js`.
 - 1º parágrafo das Observações: usa a redação do COT01 (`texts.observacoesP1`).
 - Código do documento (`SAC-RELAT.SM 22/07/26`): fica fixo em `config.js` e é editável por inspeção em "Dados do documento".

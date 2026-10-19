@@ -16,21 +16,23 @@
     defaultTechnician: 'Juliano Ciriaco da Silva Junior',
     company: 'Solar Minas LTDA',
 
-    // prefix: null = ainda não confirmado. O código sai com placeholder
-    // visível e a revisão avisa. Nunca adivinhar prefixo.
+    // Prefixo do código (3 letras, escrito também na estaca).
+    // POE e COT vêm dos relatórios já emitidos; os demais foram definidos
+    // em 19/10/2026 seguindo a mesma lógica (letras do nome, sem repetir).
+    // Não trocar depois da ida a campo: o código da casa e da estaca mudaria.
     communities: [
       { id: 'poe',       municipio: 'Paranaguá',    nome: 'Ilha do Mel, Ponta Oeste',          moradias: 24, prefix: 'POE' },
-      { id: 'pindoty',   municipio: 'Paranaguá',    nome: 'Ilha da Cotinga, Aldeia Pindoty',   moradias: 17, prefix: 'COT' }, // CONFIRMAR (relatório COT01 usa COT)
-      { id: 'tekuaty',   municipio: 'Paranaguá',    nome: 'Ilha da Cotinga, Aldeia Tekuaty',   moradias: 11, prefix: null },  // CONFIRMAR (não pode repetir COT)
-      { id: 'barra-ara', municipio: 'Guaraqueçaba', nome: 'Barra do Ararapira',                moradias: 40, prefix: null },
-      { id: 'ararapira', municipio: 'Guaraqueçaba', nome: 'Ararapira',                         moradias: 16, prefix: null },
-      { id: 'vila-fat',  municipio: 'Guaraqueçaba', nome: 'Vila Fátima',                       moradias: 18, prefix: null },
-      { id: 'abacateiro',municipio: 'Guaraqueçaba', nome: 'Abacateiro',                        moradias: 6,  prefix: null },
-      { id: 'vila-rita', municipio: 'Guaraqueçaba', nome: 'Vila Rita',                         moradias: 10, prefix: null },
-      { id: 'sibui',     municipio: 'Guaraqueçaba', nome: 'Sibuí',                             moradias: 28, prefix: null },
-      { id: 'canudal',   municipio: 'Guaraqueçaba', nome: 'Canudal',                           moradias: 13, prefix: null },
-      { id: 'barbados',  municipio: 'Guaraqueçaba', nome: 'Barbados',                          moradias: 27, prefix: null },
-      { id: 'saco-morro',municipio: 'Guaraqueçaba', nome: 'Saco do Morro',                     moradias: 8,  prefix: null }
+      { id: 'pindoty',   municipio: 'Paranaguá',    nome: 'Ilha da Cotinga, Aldeia Pindoty',   moradias: 17, prefix: 'COT' }, // relatório COT01
+      { id: 'tekuaty',   municipio: 'Paranaguá',    nome: 'Ilha da Cotinga, Aldeia Tekuaty',   moradias: 11, prefix: 'TEK' },
+      { id: 'barra-ara', municipio: 'Guaraqueçaba', nome: 'Barra do Ararapira',                moradias: 40, prefix: 'BDA' },
+      { id: 'ararapira', municipio: 'Guaraqueçaba', nome: 'Ararapira',                         moradias: 16, prefix: 'ARA' },
+      { id: 'vila-fat',  municipio: 'Guaraqueçaba', nome: 'Vila Fátima',                       moradias: 18, prefix: 'VFA' },
+      { id: 'abacateiro',municipio: 'Guaraqueçaba', nome: 'Abacateiro',                        moradias: 6,  prefix: 'ABA' },
+      { id: 'vila-rita', municipio: 'Guaraqueçaba', nome: 'Vila Rita',                         moradias: 10, prefix: 'VRI' },
+      { id: 'sibui',     municipio: 'Guaraqueçaba', nome: 'Sibuí',                             moradias: 28, prefix: 'SIB' },
+      { id: 'canudal',   municipio: 'Guaraqueçaba', nome: 'Canudal',                           moradias: 13, prefix: 'CAN' },
+      { id: 'barbados',  municipio: 'Guaraqueçaba', nome: 'Barbados',                          moradias: 27, prefix: 'BDS' },
+      { id: 'saco-morro',municipio: 'Guaraqueçaba', nome: 'Saco do Morro',                     moradias: 8,  prefix: 'SDM' }
     ],
 
     photos: {

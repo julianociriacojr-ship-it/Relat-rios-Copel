@@ -76,21 +76,21 @@ Guardar o círculo como anotação (coordenadas relativas) e também renderizar 
 | Município | Localidade | Moradias | Prefixo do código |
 |---|---|---|---|
 | Paranaguá | Ilha do Mel, Ponta Oeste | 24 | POE |
-| Paranaguá | Ilha da Cotinga, Aldeia Pindoty | 17 | [CONFIRMAR] (relatório existente usa COT) |
-| Paranaguá | Ilha da Cotinga, Aldeia Tekuaty | 11 | [CONFIRMAR] |
-| Guaraqueçaba | Barra do Ararapira | 40 | [CONFIRMAR] |
-| Guaraqueçaba | Ararapira | 16 | [CONFIRMAR] |
-| Guaraqueçaba | Vila Fátima | 18 | [CONFIRMAR] |
-| Guaraqueçaba | Abacateiro | 6 | [CONFIRMAR] |
-| Guaraqueçaba | Vila Rita | 10 | [CONFIRMAR] |
-| Guaraqueçaba | Sibuí | 28 | [CONFIRMAR] |
-| Guaraqueçaba | Canudal | 13 | [CONFIRMAR] |
-| Guaraqueçaba | Barbados | 27 | [CONFIRMAR] |
-| Guaraqueçaba | Saco do Morro | 8 | [CONFIRMAR] |
+| Paranaguá | Ilha da Cotinga, Aldeia Pindoty | 17 | COT (relatório COT01) |
+| Paranaguá | Ilha da Cotinga, Aldeia Tekuaty | 11 | TEK |
+| Guaraqueçaba | Barra do Ararapira | 40 | BDA |
+| Guaraqueçaba | Ararapira | 16 | ARA |
+| Guaraqueçaba | Vila Fátima | 18 | VFA |
+| Guaraqueçaba | Abacateiro | 6 | ABA |
+| Guaraqueçaba | Vila Rita | 10 | VRI |
+| Guaraqueçaba | Sibuí | 28 | SIB |
+| Guaraqueçaba | Canudal | 13 | CAN |
+| Guaraqueçaba | Barbados | 27 | BDS |
+| Guaraqueçaba | Saco do Morro | 8 | SDM |
 | | **Total** | **218** | |
 
 - Código completo = `86204` + prefixo + número (ex.: `86204POE01`). O `86204` deve ser uma constante de configuração.
-- Pindoty e Tekuaty ficam na mesma ilha (Cotinga). Se os dois usarem "COT", há risco de código duplicado. Confirmar os prefixos antes de implementar. Deixar a tabela em arquivo de configuração editável.
+- Prefixos definidos em 19/10/2026 (Juliano: sem regra fixa, 3 letras práticas para escrever na estaca, sem repetir). POE e COT vêm dos relatórios já emitidos. Tabela editável em `inspecao-sas/config.js`. Não trocar depois da ida a campo: o código da casa e da estaca mudaria.
 - O número da residência valida contra o total de moradias da comunidade.
 
 ## 7. Observações técnicas (chips e redação)
@@ -177,7 +177,7 @@ Estrutura e ordem **idênticas** aos modelos: Capa, Sumário, Índice de Ilustra
 
 ## 13. Pontos em aberto (confirmar com o Juliano)
 
-- Prefixos de código das 11 comunidades restantes e se `86204` é fixo para todo o projeto.
+- Se `86204` é fixo para todo o projeto.
 - Código completo (`86204POE01`) em todos os documentos, ou só `POE01` no relatório? Padrão adotado aqui: completo.
 - Qual das duas redações do primeiro parágrafo das Observações vale (POE01 ou COT01).
 - Data do código do documento (`22/07/26`): é data de emissão do modelo ou muda por relatório?

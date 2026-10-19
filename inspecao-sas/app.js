@@ -237,6 +237,7 @@
         if (!rec){ location.hash = '#/'; return; }
         Object.values(S.urls).forEach(u => URL.revokeObjectURL(u)); S.urls = {};
         S.insp = rec; S.lastExport = null;
+        if (rec.houseNumber && rec.houseCode !== codeOf(rec)) scheduleSave();   // prefixo mudou: atualiza o código salvo
       }
       S.step = Math.min(5, Math.max(1, parseInt(m[2] || '1', 10)));
       await renderForm();
@@ -250,6 +251,7 @@
 
   /* ---------------- lista ---------------- */
   const needsBackup = i => !i.backupAt || i.backupAt < (i.updatedAt || '');
+  const codeOf = i => OBS.buildHouseCode(i.communityId, i.houseNumber);
   async function renderList(){
     document.getElementById('title').textContent = 'Inspeção SAS (PEE Copel)';
     document.getElementById('subtitle').textContent = 'Comunidades isoladas · litoral do Paraná';
@@ -281,7 +283,7 @@
         const c = OBS.getCommunity(i.communityId);
         return `<button type="button" class="insp-card" data-open="${i.id}">
           <div class="main">
-            <div class="code">${esc(OBS.houseCodeComplete(i.houseCode) ? i.houseCode : (i.houseCode || 'Sem código'))}</div>
+            <div class="code">${esc(i.houseNumber ? codeOf(i) : 'Sem código')}</div>
             <div class="sub">${esc(c ? c.nome : 'Comunidade não definida')} · ${esc(fmtDate(i.inspectionDate))}</div>
             <div class="sub">${i.gps ? '📍 com coordenadas' : '📍 sem coordenadas'}${needsBackup(i) ? ' · 💾 sem backup' : ' · 💾 backup ok'}</div>
           </div>
@@ -398,9 +400,12 @@
   // Coordenadas por código: a inspeção mais recente com GPS de cada casa.
   function coordsOf(communityId){
     const out = {};
-    S.list.filter(i => i.communityId === communityId && i.gps && OBS.houseCodeComplete(i.houseCode))
+    S.list.filter(i => i.communityId === communityId && i.gps)
       .sort((a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''))
-      .forEach(i => { out[i.houseCode] = { lat: i.gps.lat, lon: i.gps.lon }; });
+      .forEach(i => {
+        const code = codeOf(i);   // recalculado: vale mesmo se o prefixo mudou
+        if (OBS.houseCodeComplete(code)) out[code] = { lat: i.gps.lat, lon: i.gps.lon };
+      });
     return out;
   }
   async function renderMemorial(cid){
