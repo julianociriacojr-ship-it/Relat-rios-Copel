@@ -71,14 +71,30 @@
   }
 
   /* ---------------- GPS ao vivo ---------------- */
-  // Acompanha a posição e guarda a de melhor precisão. onUpdate(best, last).
+  // Média ponderada das leituras boas: usa só as que estão perto da melhor
+  // precisão (até 1,5x a melhor e no máximo 20 m), com peso 1/precisão².
+  // Parado ao lado da estaca, isso reduz o "vai e vem" do GPS do celular.
+  function combine(readings){
+    if (!readings.length) return null;
+    const min = Math.min(...readings.map(r => r.accuracy));
+    const use = readings.filter(r => r.accuracy <= Math.max(min * 1.5, min + 2) && r.accuracy <= 20);
+    if (!use.length){
+      const b = readings.reduce((a, r) => (r.accuracy < a.accuracy ? r : a));
+      return { ...b, samples: 1 };
+    }
+    let sw = 0, la = 0, lo = 0;
+    use.forEach(r => { const w = 1 / Math.max(r.accuracy, 1) ** 2; sw += w; la += r.lat * w; lo += r.lon * w; });
+    return { lat: la / sw, lon: lo / sw, accuracy: min, samples: use.length, at: use[use.length - 1].at };
+  }
+  // Acompanha a posição e devolve a média das melhores leituras. onUpdate(best, last).
   function watch(onUpdate, onError){
     if (!navigator.geolocation){ onError(new Error('Este aparelho não oferece GPS ao navegador.')); return () => {}; }
-    let best = null;
+    const readings = [];
     const id = navigator.geolocation.watchPosition(p => {
       const cur = { lat: p.coords.latitude, lon: p.coords.longitude, accuracy: Math.round(p.coords.accuracy), at: new Date(p.timestamp || Date.now()).toISOString() };
-      if (!best || cur.accuracy <= best.accuracy) best = cur;
-      onUpdate(best, cur);
+      readings.push(cur);
+      if (readings.length > 120) readings.shift();
+      onUpdate(combine(readings), cur);
     }, err => onError(err), { enableHighAccuracy: true, maximumAge: 0, timeout: 120000 });
     return () => navigator.geolocation.clearWatch(id);
   }
@@ -108,7 +124,7 @@
 `;
   }
 
-  const api = { fmt, parse, regionWarning, readExifGps, watch, errorMessage, toKml, REGIAO };
+  const api = { fmt, parse, regionWarning, readExifGps, watch, combine, errorMessage, toKml, REGIAO };
   root.SAS_GEO = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -780,8 +780,8 @@
       <div class="slot-head"><strong>📍 Coordenadas da estaca</strong><span class="badge ${g ? 'ok' : 'missing'}">${g ? '✓ Registradas' : 'Faltando'}</span></div>
       <div class="slot-body">
         ${g ? `<div class="gps-val">Latitude <b>${GEO.fmt(g.lat)}</b><br>Longitude <b>${GEO.fmt(g.lon)}</b></div>
-          <div class="hint">${g.accuracy != null ? `Precisão ±${g.accuracy} m · ` : ''}${GPS_SOURCE[g.source] || ''} · ${esc(new Date(g.at).toLocaleString('pt-BR'))}</div>`
-          : '<div class="hint">Fique ao lado da estaca, em lugar aberto. O GPS funciona sem internet, mas pode levar alguns minutos para fixar.</div>'}
+          <div class="hint">${g.accuracy != null ? `Precisão ±${g.accuracy} m · ` : ''}${g.samples > 1 ? `média de ${g.samples} leituras · ` : ''}${GPS_SOURCE[g.source] || ''} · ${esc(new Date(g.at).toLocaleString('pt-BR'))}</div>`
+          : '<div class="hint">Fique parado ao lado da estaca, em lugar aberto, com o celular na mão à altura do peito. Espere 30 a 60 segundos: o app faz a média das leituras. Funciona sem internet.</div>'}
         ${warn ? `<div class="err">${esc(warn)}</div>` : ''}
         <div id="gps-live" style="display:none">
           <div class="gps-live" id="gps-status">Buscando sinal de GPS…</div>
@@ -814,7 +814,7 @@
     use.onclick = async () => {
       const b = S.gpsBest; if (!b) return;
       stopGps();
-      S.insp.gps = { lat: b.lat, lon: b.lon, accuracy: b.accuracy, at: b.at, source: 'gps' };
+      S.insp.gps = { lat: b.lat, lon: b.lon, accuracy: b.accuracy, samples: b.samples, at: b.at, source: 'gps' };
       await flushSave();
       toast('📍 Coordenadas salvas');
       renderStep();
@@ -823,8 +823,10 @@
       S.gpsBest = best;
       use.disabled = false;
       status.className = 'gps-live ' + (best.accuracy <= 10 ? 'ok' : best.accuracy <= 30 ? 'mid' : 'bad');
-      status.innerHTML = `Precisão agora: ±${cur.accuracy} m · melhor: <b>±${best.accuracy} m</b><br>${GEO.fmt(best.lat)} · ${GEO.fmt(best.lon)}`
-        + (best.accuracy > 10 ? '<br><small>Aguarde a precisão ficar abaixo de 10 m, se possível.</small>' : '<br><small>Boa precisão. Pode usar.</small>');
+      status.innerHTML = `Precisão agora: ±${cur.accuracy} m · melhor: <b>±${best.accuracy} m</b> · média de <b>${best.samples}</b> leitura(s)<br>${GEO.fmt(best.lat)} · ${GEO.fmt(best.lon)}`
+        + (best.accuracy > 10 ? '<br><small>Aguarde a precisão ficar abaixo de 10 m, se possível.</small>'
+          : best.samples < 10 ? '<br><small>Boa precisão. Fique parado mais alguns segundos para a média firmar.</small>'
+          : '<br><small>Boa precisão e média firme. Pode usar.</small>');
     }, err => {
       status.className = 'gps-live bad'; status.textContent = GEO.errorMessage(err);
       if (!S.gpsBest){ stopGps(); setTimeout(() => { const btn = document.getElementById('btn-gps'); if (btn) btn.style.display = ''; }, 0); }

@@ -30,3 +30,15 @@ test('kml com os pontos', () => {
   assert.match(k, /<coordinates>-48\.380576,-25\.506488,0<\/coordinates>/);
   assert.strictEqual((k.match(/<Placemark>/g) || []).length, 1);
 });
+
+test('média das leituras boas', () => {
+  const r = GEO.combine([
+    { lat: -25.50650, lon: -48.38060, accuracy: 6, at: 'a' },
+    { lat: -25.50648, lon: -48.38056, accuracy: 6, at: 'b' },
+    { lat: -25.50700, lon: -48.38100, accuracy: 40, at: 'c' }   // leitura ruim fica de fora
+  ]);
+  assert.strictEqual(r.samples, 2);
+  assert.strictEqual(r.accuracy, 6);
+  assert.strictEqual(GEO.fmt(r.lat), '-25,506490');
+  assert.strictEqual(GEO.fmt(r.lon), '-48,380580');
+});
