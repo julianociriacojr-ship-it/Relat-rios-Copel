@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solarminas-relatorios-v6';
+const CACHE_NAME = 'solarminas-relatorios-v7';
 const ASSETS = [
   './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   // Módulo Inspeção SAS (PEE Copel): tudo local para funcionar em modo avião
@@ -6,6 +6,10 @@ const ASSETS = [
   './inspecao-sas/style.css',
   './inspecao-sas/config.js',
   './inspecao-sas/observations.js',
+  './inspecao-sas/memorial-config.js',
+  './inspecao-sas/geo.js',
+  './inspecao-sas/backup.js',
+  './inspecao-sas/report-memorial.js',
   './inspecao-sas/db.js',
   './inspecao-sas/images.js',
   './inspecao-sas/report-docx.js',
@@ -14,9 +18,15 @@ const ASSETS = [
   './inspecao-sas/logo-solarminas.png',
   './inspecao-sas/logo-solarminas.jpg',
   './inspecao-sas/cartao-contato.png',
+  './inspecao-sas/memorial/logo-vertical.png',
+  './inspecao-sas/memorial/mapa-poe.jpg',
+  './inspecao-sas/memorial/vista-isometrica.jpg',
+  './inspecao-sas/memorial/vista-frontal.jpg',
+  './inspecao-sas/memorial/vista-lateral.jpg',
   './vendor/docx.min.js',
   './vendor/docx-layout.min.js',
-  './vendor/jspdf.umd.min.js'
+  './vendor/jspdf.umd.min.js',
+  './vendor/jszip.min.js'
 ];
 
 self.addEventListener('install', (e) => {

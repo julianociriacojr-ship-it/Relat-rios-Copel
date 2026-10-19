@@ -1,16 +1,20 @@
 /* ======================================================================
    INSPEÇÃO SAS (PEE COPEL) — TELAS
    Lista de inspeções + formulário em 5 passos. Tudo salvo no aparelho
-   (IndexedDB) a cada alteração. Rotas: #/ (lista), #/i/<id>/<passo>.
+   (IndexedDB) a cada alteração. Rotas: #/ (lista), #/i/<id>/<passo>,
+   #/memorial/<comunidade>.
 ====================================================================== */
 (function(){
   const CFG = window.SAS_CONFIG, OBS = window.SAS_OBS, DB = window.SAS_DB, IMG = window.SAS_IMG, REP = window.SAS_REPORT, PDF = window.SAS_PDF;
+  const GEO = window.SAS_GEO, BACKUP = window.SAS_BACKUP, MEMORIAL = window.SAS_MEMORIAL, MEMCFG = window.SAS_MEMORIAL_CONFIG;
   const WORD_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const PDF_MIME = 'application/pdf';
   const STEPS = ['Identificação', 'Checklist', 'Fotos', 'Observações', 'Revisão'];
   const STEPS_SHORT = ['Dados', 'Checklist', 'Fotos', 'Obs.', 'Revisão'];
   const STATUS_LABEL = { draft: 'Rascunho', ready: 'Pronto', exported: 'Exportado' };
   const FILTER_KEY = 'sas_filtro_comunidade'; // conveniência por aparelho, não é dado da inspeção
+  const ENGINEER_KEY = 'sas_memorial_engenheiro';
+  const ZIP_MIME = 'application/zip';
 
   const view = document.getElementById('view');
   const footer = document.getElementById('footer');
@@ -23,7 +27,9 @@
     saveTimer: null,
     savePromise: Promise.resolve(),
     urls: {},          // photoId -> objectURL
-    lastExport: null   // { files: [{ blob, name, type, label, icon }] }
+    lastExport: null,  // { files: [{ blob, name, type, label, icon, share }] }
+    gpsStop: null,     // encerra o GPS ao vivo
+    gpsBest: null
   };
 
   /* ---------------- utilitários ---------------- */
@@ -63,7 +69,8 @@
       extraPhotos: [],
       observations: { chips: {}, freeText: '', finalText: '', finalEdited: false },
       recommendation: '',
-      status: 'draft', createdAt: now, updatedAt: now, exportedAt: null
+      gps: null,       // { lat, lon, accuracy, at, source: 'gps' | 'foto' | 'manual' }
+      status: 'draft', createdAt: now, updatedAt: now, exportedAt: null, backupAt: null
     };
   }
 
@@ -92,12 +99,14 @@
     const semResposta = OBS.CHIPS.filter(g => !ch[g.key]).map(g => g.label);
     if (semResposta.length) add('Observações sem resposta: ' + semResposta.join(', ') + '.', true);
     if (!String(i.observations.finalText || '').trim()) add('Observações técnicas vazias.');
+    if (!i.gps) add('Coordenadas GPS da estaca não registradas (necessárias para o memorial).', true);
+    else { const w = GEO.regionWarning(i.gps.lat, i.gps.lon); if (w) add('Coordenadas: ' + w, true); }
     return out;
   }
   function stepDone(i, n){
     if (n === 1) return !!OBS.getCommunity(i.communityId) && !OBS.houseNumberError(i.communityId, i.houseNumber) && !!i.inspectionDate && !!String(i.technician || '').trim();
     if (n === 2) return !!i.photos.checklist;
-    if (n === 3) return !!(i.photos.frente && i.photos.estaca && i.photos.estacaCodigo);
+    if (n === 3) return !!(i.photos.frente && i.photos.estaca && i.photos.estacaCodigo && i.gps);
     if (n === 4) return !!String(i.observations.finalText || '').trim();
     return false;
   }
@@ -187,6 +196,13 @@
     if (!file) return;
     const done = overlay('Processando foto…');
     try{
+      // Foto da galeria com GPS gravado: aproveita a coordenada se ainda não há.
+      if (!S.insp.gps && (slot === 'estaca' || slot === 'estacaCodigo')){
+        try{
+          const g = GEO.readExifGps(await (file.arrayBuffer ? file.arrayBuffer() : new Response(file).arrayBuffer()));
+          if (g){ S.insp.gps = { lat: g.lat, lon: g.lon, accuracy: null, at: new Date(file.lastModified || Date.now()).toISOString(), source: 'foto' }; toast('📍 Coordenadas lidas da foto', false, 2500); }
+        }catch(e){ /* foto sem EXIF */ }
+      }
       const rec = await storePhoto(slot === 'extra' ? 'extra' : slot, file);
       if (slot === 'extra'){
         S.insp.extraPhotos.push({ photoId: rec.id, caption: '' });
@@ -211,6 +227,9 @@
   /* ---------------- rotas ---------------- */
   async function route(){
     if (S.saveTimer) await flushSave();
+    stopGps();
+    const mm = location.hash.match(/^#\/memorial\/([^/]+)/);
+    if (mm && OBS.getCommunity(mm[1])){ S.insp = null; await renderMemorial(mm[1]); return; }
     const m = location.hash.match(/^#\/i\/([^/]+)(?:\/(\d))?/);
     if (m){
       if (!S.insp || S.insp.id !== m[1]){
@@ -230,6 +249,7 @@
   const goStep = n => { location.hash = `#/i/${S.insp.id}/${n}`; };
 
   /* ---------------- lista ---------------- */
+  const needsBackup = i => !i.backupAt || i.backupAt < (i.updatedAt || '');
   async function renderList(){
     document.getElementById('title').textContent = 'Inspeção SAS (PEE Copel)';
     document.getElementById('subtitle').textContent = 'Comunidades isoladas · litoral do Paraná';
@@ -237,15 +257,25 @@
     setSaveState('', '');
     S.list = await DB.listInspections();
     let filter = ''; try { filter = localStorage.getItem(FILTER_KEY) || ''; } catch(e){}
+    if (filter && !OBS.getCommunity(filter)) filter = '';
     const items = S.list.filter(i => !filter || i.communityId === filter)
       .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     const counts = {}; S.list.forEach(i => { counts[i.communityId] = (counts[i.communityId] || 0) + 1; });
+    const semBackup = items.filter(needsBackup).length;
+    const fc = OBS.getCommunity(filter);
     view.innerHTML = `
       <div class="list-tools">
         <select id="filter" aria-label="Filtrar por comunidade">
           <option value="">Todas as comunidades (${S.list.length})</option>
           ${CFG.communities.map(c => `<option value="${c.id}" ${filter === c.id ? 'selected' : ''}>${esc(c.nome)} (${counts[c.id] || 0}/${c.moradias})</option>`).join('')}
         </select>
+        ${semBackup ? `<div class="warn-box"><b>⚠ ${semBackup} ${semBackup === 1 ? 'inspeção alterada' : 'inspeções alteradas'} desde o último backup.</b><br>Os dados estão só neste aparelho. Faça o backup e guarde o arquivo fora do celular (WhatsApp, e-mail, Drive).</div>` : ''}
+        <div class="photo-row">
+          <button type="button" class="btn-ghost" id="btn-backup" style="flex:1" ${items.length ? '' : 'disabled'}>💾 Backup${fc ? ' da comunidade' : ' de tudo'}</button>
+          <label class="btn-ghost" style="flex:1;display:flex;align-items:center;justify-content:center;cursor:pointer">📥 Restaurar backup<input type="file" id="restore-input" accept=".zip,application/zip" multiple style="display:none"></label>
+        </div>
+        ${fc ? `<a class="btn-teal" href="#/memorial/${fc.id}" style="text-decoration:none;display:flex;align-items:center;justify-content:center">📄 Memorial descritivo · ${esc(fc.nome)}</a>`
+             : '<p class="hint" style="margin:0">Para gerar o memorial descritivo, escolha a comunidade no filtro acima.</p>'}
       </div>
       ${items.length ? items.map(i => {
         const c = OBS.getCommunity(i.communityId);
@@ -253,6 +283,7 @@
           <div class="main">
             <div class="code">${esc(OBS.houseCodeComplete(i.houseCode) ? i.houseCode : (i.houseCode || 'Sem código'))}</div>
             <div class="sub">${esc(c ? c.nome : 'Comunidade não definida')} · ${esc(fmtDate(i.inspectionDate))}</div>
+            <div class="sub">${i.gps ? '📍 com coordenadas' : '📍 sem coordenadas'}${needsBackup(i) ? ' · 💾 sem backup' : ' · 💾 backup ok'}</div>
           </div>
           <span class="status ${i.status}">${STATUS_LABEL[i.status] || i.status}</span>
         </button>`;
@@ -268,15 +299,182 @@
     };
     document.getElementById('filter').onchange = e => { try { localStorage.setItem(FILTER_KEY, e.target.value); } catch(err){} renderList(); };
     view.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { location.hash = `#/i/${b.dataset.open}/1`; });
+    document.getElementById('btn-backup').onclick = () => backupInspections(items, fc ? fc.nome : 'todas');
+    document.getElementById('restore-input').onchange = e => restoreBackups(e.target);
     const est = await DB.estimate();
     const persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted().catch(() => false) : false;
     const hint = document.getElementById('storage-hint');
     if (hint){
       const parts = [];
       if (est && est.usage != null) parts.push(`Dados neste aparelho: ${(est.usage / 1048576).toFixed(1)} MB`);
-      if (!persisted) parts.push('Armazenamento ainda não marcado como permanente pelo navegador. Instale o app na tela inicial e exporte os relatórios assim que possível.');
+      if (!persisted) parts.push('Armazenamento ainda não marcado como permanente pelo navegador. Instale o app na tela inicial e faça backup ao fim de cada visita.');
       hint.textContent = parts.join('. ');
     }
+  }
+
+  /* ---------------- backup e restauração ---------------- */
+  async function markBackedUp(list, at){
+    for (const rec of list){
+      const cur = await DB.getInspection(rec.id);
+      if (!cur || (cur.updatedAt || '') > at) continue;   // mudou depois de começar o backup
+      cur.backupAt = at;
+      await DB.putInspection(cur);
+    }
+  }
+  async function backupInspections(list, label){
+    if (!list.length) return;
+    const done = overlay(`Montando backup de ${list.length} ${list.length === 1 ? 'inspeção' : 'inspeções'}…`);
+    try{
+      const at = new Date().toISOString();
+      const fresh = [];
+      for (const i of list){ const r = await DB.getInspection(i.id); if (r) fresh.push(r); }
+      const mapas = CFG.communities.map(c => 'mapa:' + c.id);
+      const blob = await BACKUP.build(fresh.map(r => ({ ...r, backupAt: at })), mapas);
+      const f = { blob, name: BACKUP.fileName(label), type: ZIP_MIME, label: 'backup', icon: '💾' };
+      await markBackedUp(fresh, at);
+      done();
+      await shareOrDownload(f, 'Backup pronto');
+      if (!S.insp) renderList();
+    }catch(err){
+      done(); console.error(err);
+      toast('Erro ao montar o backup: ' + (err && err.message || err), true, 6000);
+    }
+  }
+  // Oferece compartilhar (WhatsApp, e-mail, Drive) e também baixa o arquivo.
+  async function shareOrDownload(f, title){
+    downloadViaLink(f);
+    const file = asFile(f);
+    let canShare = false;
+    try { canShare = !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch(e){}
+    const box = document.createElement('div');
+    box.className = 'overlay';
+    box.innerHTML = `<div style="max-width:92vw;text-align:center">${esc(title)}<br><small style="font-weight:600;color:#3F4D52">${esc(f.name)} · ${sizeMB(f.blob)}<br>Baixado na pasta Downloads. Guarde também fora do celular.</small>
+      <div class="photo-row" style="margin-top:14px">${canShare ? '<button type="button" class="btn-teal" data-a="share">📤 Enviar</button>' : ''}<button type="button" class="btn-ghost" data-a="ok" style="flex:1">OK</button></div></div>`;
+    document.body.appendChild(box);
+    box.addEventListener('click', async e => {
+      const a = e.target.closest('[data-a]'); if (!a) return;
+      if (a.dataset.a === 'share'){
+        try { await navigator.share({ files: [file], title: f.name }); }
+        catch(err){ if (!err || err.name !== 'AbortError') toast('Não abriu o compartilhamento.', true); }
+      }
+      box.remove();
+    });
+  }
+  async function restoreBackups(input){
+    const files = Array.from(input.files || []);
+    input.value = '';
+    if (!files.length) return;
+    const done = overlay('Restaurando backup…');
+    const tot = { novas: 0, atualizadas: 0, mantidas: 0, fotos: 0 };
+    try{
+      for (const f of files){
+        const r = await BACKUP.restore(f);
+        tot.novas += r.novas; tot.atualizadas += r.atualizadas; tot.mantidas += r.mantidas; tot.fotos += r.fotos;
+      }
+      done();
+      toast(`✓ Backup restaurado: ${tot.novas} nova(s), ${tot.atualizadas} atualizada(s), ${tot.mantidas} já estava(m) em dia.`, false, 6000);
+    }catch(err){
+      done(); console.error(err);
+      toast('Erro ao restaurar: ' + (err && err.message || err), true, 7000);
+    }
+    renderList();
+  }
+
+  /* ---------------- memorial descritivo ---------------- */
+  const assetCache = {};
+  async function loadAsset(path){
+    if (assetCache[path] !== undefined) return assetCache[path];
+    try{
+      const r = await fetch('inspecao-sas/' + path);
+      if (!r.ok) throw new Error(r.status);
+      const blob = await r.blob();
+      const im = await IMG.decode(blob);
+      const width = im.naturalWidth || im.width, height = im.naturalHeight || im.height;
+      if (im.close) im.close();
+      assetCache[path] = { data: await blobBytes(blob), width, height, type: /\.png$/i.test(path) ? 'png' : 'jpg' };
+    }catch(e){ console.warn('Imagem indisponível', path, e); assetCache[path] = null; }
+    return assetCache[path];
+  }
+  // Coordenadas por código: a inspeção mais recente com GPS de cada casa.
+  function coordsOf(communityId){
+    const out = {};
+    S.list.filter(i => i.communityId === communityId && i.gps && OBS.houseCodeComplete(i.houseCode))
+      .sort((a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''))
+      .forEach(i => { out[i.houseCode] = { lat: i.gps.lat, lon: i.gps.lon }; });
+    return out;
+  }
+  async function renderMemorial(cid){
+    const c = OBS.getCommunity(cid);
+    const m = MEMCFG.comunidades[cid] || {};
+    S.list = await DB.listInspections();
+    document.getElementById('title').textContent = 'Memorial descritivo';
+    document.getElementById('subtitle').textContent = c.nome;
+    document.getElementById('back-btn').href = '#/';
+    setSaveState('', '');
+    const rows = MEMORIAL.coordinateRows(cid, coordsOf(cid));
+    const ok = rows.filter(r => r.lat).length;
+    const custom = await DB.getPhoto('mapa:' + cid);
+    const mapUrl = custom ? URL.createObjectURL(custom.blob) : (m.mapa ? 'inspecao-sas/' + m.mapa : null);
+    let eng = CFG.defaultTechnician; try { eng = localStorage.getItem(ENGINEER_KEY) || eng; } catch(e){}
+    const textosPendentes = !m.transporte || !m.acesso || !m.acessoConclusao;
+    view.innerHTML = `
+      <section class="card"><h2>${esc(m.nome || c.nome)}</h2>
+        <p style="margin:0 0 8px">${esc(c.municipio)} · ${c.moradias} moradias</p>
+        <div class="${ok === rows.length ? 'all-ok' : 'warn-box'}">📍 Coordenadas: <b>${ok} de ${rows.length}</b> residências.${ok < rows.length ? '<br>As que faltam saem como [PENDENTE] na Tabela 1.' : ''}</div>
+        ${textosPendentes ? '<div class="warn-box">Os textos de localização e acesso desta comunidade ainda não foram escritos. Saem como [DESCREVER: ...] no documento para ajuste no Word (ou peça para incluir no app).</div>' : ''}
+        <details ${ok < rows.length ? 'open' : ''}><summary>Tabela 1 · coordenadas</summary>
+          <table class="sum-table"><tr><td><b>Residência</b></td><td><b>Latitude · Longitude</b></td></tr>
+          ${rows.map(r => `<tr><td>${esc(r.code)}</td><td>${r.lat ? esc(r.lat + ' · ' + r.lon) : '<b style="color:#A3271B">pendente</b>'}</td></tr>`).join('')}</table>
+        </details>
+        <p class="hint">Inspeções feitas em outro celular: peça ao colega o backup (.zip) e use “Restaurar backup” na lista. As coordenadas dele entram aqui.</p>
+      </section>
+      <section class="card"><h2>Mapa de localização (Figura 1)</h2>
+        ${mapUrl ? `<img src="${mapUrl}" alt="Mapa" style="width:100%;border-radius:8px;border:1px solid var(--line)">` : '<div class="slot-empty">Sem mapa. Sai como [INSERIR FOTO: mapa de localização] no documento.</div>'}
+        <div class="photo-row" style="margin-top:10px">
+          <label class="photo-btn secondary">🖼️ ${mapUrl ? 'Trocar mapa' : 'Escolher mapa'}<input type="file" accept="image/*" id="map-input"></label>
+          ${custom ? '<button type="button" class="btn-ghost" id="btn-map-reset">Voltar ao padrão</button>' : ''}
+        </div>
+      </section>
+      <section class="card"><h2>Engenheiro responsável</h2>
+        <input type="text" id="mem-eng" value="${esc(eng)}" autocomplete="name">
+      </section>
+      <section class="card"><h2>Gerar</h2>
+        <button type="button" class="btn-primary" id="btn-memorial" style="width:100%">Gerar memorial (.docx)</button>
+      </section>`;
+    footer.style.display = 'flex';
+    footer.innerHTML = '<a class="btn-ghost" href="#/" style="text-decoration:none;display:flex;align-items:center;justify-content:center;flex:1">← Lista</a>';
+    document.getElementById('mem-eng').oninput = e => { try { localStorage.setItem(ENGINEER_KEY, e.target.value); } catch(err){} };
+    document.getElementById('map-input').onchange = async e => {
+      const file = e.target.files && e.target.files[0]; e.target.value = '';
+      if (!file) return;
+      const done = overlay('Processando mapa…');
+      try{
+        const r = await IMG.resizeToJpeg(file, 2400, 0.85);
+        await DB.putPhoto({ id: 'mapa:' + cid, inspectionId: 'comunidade:' + cid, slot: 'mapa', blob: r.blob, width: r.width, height: r.height, createdAt: new Date().toISOString() });
+      }catch(err){ toast('Não foi possível ler a imagem.', true); }
+      done(); renderMemorial(cid);
+    };
+    const reset = document.getElementById('btn-map-reset');
+    if (reset) reset.onclick = async () => { await DB.deletePhoto('mapa:' + cid); renderMemorial(cid); };
+    document.getElementById('btn-memorial').onclick = async () => {
+      const done = overlay('Gerando memorial…');
+      try{
+        const cc = CFG.contactCard;
+        const mapa = custom ? { data: await blobBytes(custom.blob), width: custom.width, height: custom.height, type: 'jpg' } : (m.mapa ? await loadAsset(m.mapa) : null);
+        const images = {
+          logo: await loadAsset('memorial/logo-vertical.png'),
+          mapa,
+          vistas: await Promise.all(MEMCFG.vistas.map(v => loadAsset(v.file))),
+          card: cc ? await loadAsset(cc.file) : null
+        };
+        const blob = await MEMORIAL.buildMemorial({ communityId: cid, coords: coordsOf(cid), engineer: document.getElementById('mem-eng').value, images, outputType: 'blob' });
+        done();
+        await shareOrDownload({ blob: new Blob([blob], { type: WORD_MIME }), name: MEMORIAL.memorialFileName(cid), type: WORD_MIME, label: '.docx', icon: '📝' }, 'Memorial gerado');
+      }catch(err){
+        done(); console.error(err);
+        toast('Erro ao gerar o memorial: ' + (err && err.message || err), true, 6000);
+      }
+    };
   }
 
   /* ---------------- formulário ---------------- */
@@ -314,6 +512,7 @@
   async function renderStep(){
     const i = S.insp;
     const y = window.scrollY;
+    stopGps();
     let html = stepsBar();
 
     if (S.step === 1){
@@ -373,6 +572,7 @@
           showId: i.photos.estacaMarcada || i.photos.estaca,
           extra: i.photos.estaca ? `<button type="button" class="btn-line circle" id="btn-circle">⭕ ${circles ? `Editar círculo (${circles})` : 'Marcar círculo vermelho'}</button>` : ''
         })}
+        ${gpsHTML()}
         ${await slotHTML('estacaCodigo', 'Figura 3 · Estaca com o código escrito', 'Foto da estaca mostrando o código da residência.')}
         ${CFG.allowExtraPhotos ? `<h2 style="margin-top:18px">Fotos adicionais (opcional)</h2>
         ${extras.join('')}
@@ -418,6 +618,7 @@
           <tr><td>Data da inspeção</td><td>${esc(fmtDate(i.inspectionDate))}</td></tr>
           <tr><td>Responsável técnico</td><td>${esc(i.technician)}</td></tr>
           <tr><td>Checklist</td><td>${i.photos.checklist ? '✓ foto salva' : 'faltando'}</td></tr>
+          <tr><td>Coordenadas</td><td>${i.gps ? esc(GEO.fmt(i.gps.lat) + ' · ' + GEO.fmt(i.gps.lon)) : 'não registradas'}</td></tr>
           <tr><td>Figuras</td><td>${[i.photos.frente, i.photos.estaca, i.photos.estacaCodigo].filter(Boolean).length + i.extraPhotos.length} de ${nFig}</td></tr>
           <tr><td>Status</td><td><span class="status ${i.status}">${STATUS_LABEL[i.status]}</span></td></tr>
         </table>
@@ -428,7 +629,8 @@
           : '<div class="all-ok">✓ Tudo preenchido.</div>'}
       </section>
       <section class="card"><h2>Exportar</h2>
-        <button type="button" class="btn-primary" id="btn-docx" style="width:100%">Gerar e baixar .docx + PDF</button>
+        <button type="button" class="btn-primary" id="btn-docx" style="width:100%">Gerar e baixar .docx + PDF + backup</button>
+        <p class="hint">O backup (.zip) guarda tudo desta inspeção, inclusive fotos e coordenadas. Mande para o WhatsApp, e-mail ou Drive assim que tiver sinal.</p>
         <div class="export-result" id="export-result">${S.lastExport ? exportResultHTML() : ''}</div>
       </section>
       <button type="button" class="btn-line danger" id="btn-delete">Excluir esta inspeção do aparelho</button>`;
@@ -498,6 +700,8 @@
     bindRegen();
 
     const circleBtn = document.getElementById('btn-circle'); if (circleBtn) circleBtn.onclick = editCircles;
+    const gpsBtn = document.getElementById('btn-gps'); if (gpsBtn) gpsBtn.onclick = startGps;
+    const gpsMan = document.getElementById('btn-gps-manual'); if (gpsMan) gpsMan.onclick = saveManualGps;
     view.querySelectorAll('[data-extra-caption]').forEach(inp => inp.addEventListener('input', () => {
       S.insp.extraPhotos[+inp.dataset.extraCaption].caption = inp.value; scheduleSave();
     }));
@@ -536,6 +740,76 @@
         : dup ? `Atenção: já existe uma inspeção ${code} neste aparelho.` : '';
     }
     document.getElementById('title').textContent = OBS.houseCodeComplete(code) ? code : 'Nova inspeção';
+  }
+
+  /* ---------------- GPS da estaca ---------------- */
+  const GPS_SOURCE = { gps: 'GPS do celular', foto: 'GPS gravado na foto', manual: 'digitadas' };
+  function gpsHTML(){
+    const g = S.insp.gps;
+    const warn = g ? GEO.regionWarning(g.lat, g.lon) : null;
+    return `<div class="slot" id="gps-box">
+      <div class="slot-head"><strong>📍 Coordenadas da estaca</strong><span class="badge ${g ? 'ok' : 'missing'}">${g ? '✓ Registradas' : 'Faltando'}</span></div>
+      <div class="slot-body">
+        ${g ? `<div class="gps-val">Latitude <b>${GEO.fmt(g.lat)}</b><br>Longitude <b>${GEO.fmt(g.lon)}</b></div>
+          <div class="hint">${g.accuracy != null ? `Precisão ±${g.accuracy} m · ` : ''}${GPS_SOURCE[g.source] || ''} · ${esc(new Date(g.at).toLocaleString('pt-BR'))}</div>`
+          : '<div class="hint">Fique ao lado da estaca, em lugar aberto. O GPS funciona sem internet, mas pode levar alguns minutos para fixar.</div>'}
+        ${warn ? `<div class="err">${esc(warn)}</div>` : ''}
+        <div id="gps-live" style="display:none">
+          <div class="gps-live" id="gps-status">Buscando sinal de GPS…</div>
+          <div class="photo-row" style="margin-top:8px">
+            <button type="button" class="btn-teal" id="btn-gps-use" disabled>✓ Usar esta posição</button>
+            <button type="button" class="btn-ghost" id="btn-gps-cancel">Cancelar</button>
+          </div>
+        </div>
+        <button type="button" class="photo-btn" id="btn-gps" style="width:100%;margin-top:10px">📍 ${g ? 'Capturar de novo aqui' : 'Capturar GPS aqui'}</button>
+        <details><summary>Digitar coordenadas</summary>
+          <label class="f" for="gps-lat">Latitude (ex.: -25,506488)</label>
+          <input type="text" id="gps-lat" autocomplete="off" value="${g ? GEO.fmt(g.lat) : ''}">
+          <label class="f" for="gps-lon">Longitude (ex.: -48,380576)</label>
+          <input type="text" id="gps-lon" autocomplete="off" value="${g ? GEO.fmt(g.lon) : ''}">
+          <button type="button" class="btn-line" id="btn-gps-manual">Salvar coordenadas digitadas</button>
+        </details>
+      </div>
+    </div>`;
+  }
+  function stopGps(){ if (S.gpsStop){ S.gpsStop(); S.gpsStop = null; } }
+  function startGps(){
+    stopGps();
+    S.gpsBest = null;
+    const live = document.getElementById('gps-live'), status = document.getElementById('gps-status');
+    const use = document.getElementById('btn-gps-use'), cancel = document.getElementById('btn-gps-cancel');
+    document.getElementById('btn-gps').style.display = 'none';
+    live.style.display = 'block';
+    status.className = 'gps-live'; status.textContent = 'Buscando sinal de GPS…';
+    cancel.onclick = () => { stopGps(); renderStep(); };
+    use.onclick = async () => {
+      const b = S.gpsBest; if (!b) return;
+      stopGps();
+      S.insp.gps = { lat: b.lat, lon: b.lon, accuracy: b.accuracy, at: b.at, source: 'gps' };
+      await flushSave();
+      toast('📍 Coordenadas salvas');
+      renderStep();
+    };
+    S.gpsStop = GEO.watch((best, cur) => {
+      S.gpsBest = best;
+      use.disabled = false;
+      status.className = 'gps-live ' + (best.accuracy <= 10 ? 'ok' : best.accuracy <= 30 ? 'mid' : 'bad');
+      status.innerHTML = `Precisão agora: ±${cur.accuracy} m · melhor: <b>±${best.accuracy} m</b><br>${GEO.fmt(best.lat)} · ${GEO.fmt(best.lon)}`
+        + (best.accuracy > 10 ? '<br><small>Aguarde a precisão ficar abaixo de 10 m, se possível.</small>' : '<br><small>Boa precisão. Pode usar.</small>');
+    }, err => {
+      status.className = 'gps-live bad'; status.textContent = GEO.errorMessage(err);
+      if (!S.gpsBest){ stopGps(); setTimeout(() => { const btn = document.getElementById('btn-gps'); if (btn) btn.style.display = ''; }, 0); }
+    });
+  }
+  async function saveManualGps(){
+    const lat = GEO.parse(document.getElementById('gps-lat').value), lon = GEO.parse(document.getElementById('gps-lon').value);
+    if (lat == null || lon == null){ toast('Digite latitude e longitude em graus decimais, ex.: -25,506488', true, 4000); return; }
+    const w = GEO.regionWarning(lat, lon);
+    if (w && !confirm(w + ' Salvar assim mesmo?')) return;
+    S.insp.gps = { lat, lon, accuracy: null, at: new Date().toISOString(), source: 'manual' };
+    await flushSave();
+    toast('📍 Coordenadas salvas');
+    renderStep();
   }
 
   /* ---------------- exportação ---------------- */
@@ -580,20 +854,25 @@
       const card = cc ? await loadLogo(cc.file, 'png', cc.width, cc.height) : null;
       const docxBlob = await REP.buildReport({ inspection: i, images, logo: await loadLogo('logo-solarminas.png', 'png'), card, outputType: 'blob' });
       const pdfBuf = PDF.buildPdf({ inspection: i, images, logo: await loadLogo('logo-solarminas.jpg', 'jpg'), card });
-      S.lastExport = { files: [
-        { blob: new Blob([docxBlob], { type: WORD_MIME }), name: REP.reportFileName(i.houseCode), type: WORD_MIME, label: '.docx', icon: '📝' },
-        { blob: new Blob([pdfBuf], { type: PDF_MIME }), name: PDF.pdfFileName(i.houseCode), type: PDF_MIME, label: 'PDF', icon: '📄' }
-      ] };
       i.exportedAt = new Date().toISOString();
       await flushSave();
+      // Marca como exportado e com backup antes de montar o .zip, para a cópia
+      // restaurada voltar igual.
+      i.backupAt = new Date().toISOString();
       i.status = 'exported';
+      const zip = await BACKUP.build([JSON.parse(JSON.stringify(i))]);
+      S.lastExport = { files: [
+        { blob: new Blob([docxBlob], { type: WORD_MIME }), name: REP.reportFileName(i.houseCode), type: WORD_MIME, label: '.docx', icon: '📝', share: true },
+        { blob: new Blob([pdfBuf], { type: PDF_MIME }), name: PDF.pdfFileName(i.houseCode), type: PDF_MIME, label: 'PDF', icon: '📄', share: true },
+        { blob: zip, name: BACKUP.fileName(i.houseCode), type: ZIP_MIME, label: 'backup', icon: '💾', share: true }
+      ] };
       await DB.putInspection(JSON.parse(JSON.stringify(i)));
       const k = S.list.findIndex(o => o.id === i.id); if (k >= 0) S.list[k] = JSON.parse(JSON.stringify(i));
       done();
       await renderStep();
-      // Baixa os dois arquivos direto (o navegador pode pedir para permitir vários downloads).
+      // Baixa os três arquivos direto (o navegador pode pedir para permitir vários downloads).
       S.lastExport.files.forEach((f, n) => setTimeout(() => downloadViaLink(f), n * 600));
-      toast('✓ .docx e PDF gerados. Baixando para a pasta Downloads…', false, 4000);
+      toast('✓ .docx, PDF e backup gerados. Baixando para a pasta Downloads…', false, 4000);
     }catch(err){
       done();
       console.error(err);
@@ -608,6 +887,8 @@
     const all = S.lastExport.files.map(asFile);
     try{
       if (navigator.canShare({ files: all })) return all;
+      const docs = all.slice(0, 2);                       // sem o .zip, se o celular não aceitar
+      if (navigator.canShare({ files: docs })) return docs;
       if (navigator.canShare({ files: [all[0]] })) return [all[0]];
     }catch(e){}
     return null;
