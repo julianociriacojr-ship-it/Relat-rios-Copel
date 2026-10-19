@@ -355,7 +355,7 @@
     try { canShare = !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch(e){}
     const box = document.createElement('div');
     box.className = 'overlay';
-    box.innerHTML = `<div style="max-width:92vw;text-align:center">${esc(title)}<br><small style="font-weight:600;color:#3F4D52">${esc(f.name)} · ${sizeMB(f.blob)}<br>Baixado na pasta Downloads. Guarde também fora do celular.</small>
+    box.innerHTML = `<div style="max-width:92vw;text-align:center">${esc(title)}<br><small style="font-weight:600;color:#3F4D52">${esc(f.name)} · ${sizeMB(f.blob)}<br>Baixado na pasta Downloads. Guarde também fora do celular.${canShare ? '' : '<br>Para mandar pelo WhatsApp: 📎 Anexar → Documento → Downloads.'}</small>
       <div class="photo-row" style="margin-top:14px">${canShare ? '<button type="button" class="btn-teal" data-a="share">📤 Enviar</button>' : ''}<button type="button" class="btn-ghost" data-a="ok" style="flex:1">OK</button></div></div>`;
     document.body.appendChild(box);
     box.addEventListener('click', async e => {
@@ -914,21 +914,27 @@
     }
   }
   const asFile = f => new File([f.blob], f.name, { type: f.type });
+  // Cada navegador aceita tipos diferentes no compartilhamento: o Chrome do
+  // Android costuma recusar .docx e .zip, mas aceita PDF. Testa arquivo por
+  // arquivo e compartilha os que ele aceitar; o resto fica nos Downloads.
   function shareableFiles(){
     if (!S.lastExport || !navigator.canShare) return null;
-    const all = S.lastExport.files.map(asFile);
     try{
-      if (navigator.canShare({ files: all })) return all;
-      const docs = all.slice(0, 2);                       // sem o .zip, se o celular não aceitar
-      if (navigator.canShare({ files: docs })) return docs;
-      if (navigator.canShare({ files: [all[0]] })) return [all[0]];
-    }catch(e){}
-    return null;
+      const ok = S.lastExport.files.map(asFile).filter(f => navigator.canShare({ files: [f] }));
+      if (!ok.length) return null;
+      if (navigator.canShare({ files: ok })) return ok;
+      return [ok[0]];
+    }catch(e){ return null; }
+  }
+  function notShareable(){
+    const ok = (shareableFiles() || []).map(f => f.name);
+    return S.lastExport.files.filter(f => !ok.includes(f.name));
   }
   function exportResultHTML(){
     const files = S.lastExport.files;
     return `${files.map(f => `<div class="file">${f.icon} ${esc(f.name)} · ${sizeMB(f.blob)}</div>`).join('')}
-      ${shareableFiles() ? '<button type="button" class="btn-teal" id="btn-share" style="width:100%;margin-bottom:10px">📤 Compartilhar (WhatsApp, e-mail…)</button>' : ''}
+      ${shareableFiles() ? `<button type="button" class="btn-teal" id="btn-share" style="width:100%;margin-bottom:10px">📤 Compartilhar ${esc(shareableFiles().map(f => f.name.split('.').pop().toUpperCase()).join(' + '))} (WhatsApp, e-mail…)</button>` : ''}
+      ${notShareable().length ? `<p class="hint">Este celular não envia ${esc(notShareable().map(f => '.' + f.name.split('.').pop()).join(' e '))} pelo compartilhar. Eles já estão em Downloads: no WhatsApp, use 📎 Anexar → Documento.</p>` : ''}
       <div class="photo-row">
         ${files.map((f, n) => `<button type="button" class="btn-ghost" data-download="${n}" style="flex:1">⬇️ Baixar ${f.label}</button>`).join('')}
       </div>`;
