@@ -61,7 +61,7 @@
     const {
       Document, Packer, Paragraph, TextRun, ImageRun, Table, TableRow, TableCell, WidthType, AlignmentType,
       BorderStyle, Header, Footer, PageNumber, TableOfContents, SequentialIdentifier, HeadingLevel, VerticalAlign,
-      TableLayoutType, Bookmark, PageReference, TabStopType, LeaderType, Tab, LineRuleType, LevelFormat, ShadingType
+      TableLayoutType, Bookmark, PageReference, TabStopType, LeaderType, Tab, LineRuleType, LevelFormat, ShadingType, HeightRule
     } = D;
     const v = communityVars(communityId);
     const rows = coordinateRows(communityId, coords || {});
@@ -96,7 +96,16 @@
         out.push(new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, keepLines: true, spacing: { before: 120, after: 60 },
           children: [imgRun(img, fit(img, box))] }));
       } else {
-        out.push(P([new TextRun({ text: `[INSERIR FOTO: ${missingDesc}]`, bold: true, color: 'C2410C' })], { align: AlignmentType.CENTER, keepNext: true, before: 600, after: 600 }));
+        // Quadro reservado do tamanho da imagem, para colar a montagem no Word.
+        const dash = { style: BorderStyle.DASHED, size: 8, color: 'C2410C' };
+        const wTw = Math.round(box.w / PX_PER_CM * CM), hTw = Math.round(box.h / PX_PER_CM * CM);
+        out.push(new Table({ width: { size: wTw, type: WidthType.DXA }, layout: TableLayoutType.FIXED, columnWidths: [wTw], alignment: AlignmentType.CENTER,
+          rows: [new TableRow({ cantSplit: true, height: { value: hTw, rule: HeightRule.EXACT }, children: [new TableCell({
+            width: { size: wTw, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER, borders: { top: dash, bottom: dash, left: dash, right: dash },
+            children: [
+              new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, children: [new TextRun({ text: `[INSERIR IMAGEM: ${missingDesc}]`, bold: true, color: 'C2410C' })] }),
+              new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, spacing: { before: 120 }, children: [new TextRun({ text: 'Espaço reservado: apague este quadro e cole a imagem aqui.', italics: true, size: 18, color: '5B6A70' })] })
+            ] })] })] }));
       }
       out.push(new Paragraph({ style: 'Caption', alignment: AlignmentType.CENTER, keepLines: true, spacing: { before: 60, after: 240 },
         children: [new Bookmark({ id: bm, children: [new TextRun('Figura '), new SequentialIdentifier('Figura'), new TextRun(': ' + t(legenda))] })] }));
@@ -169,7 +178,7 @@
           body.push(label('Local de Implantação:', v.LOCAL));
         } else if (item === 'TABELA_DISTRIBUICAO') body.push(...tabelaDistribuicao());
         else if (item === 'TABELA_COORDENADAS') body.push(...tabelaCoordenadas());
-        else if (item === 'FIGURA_MAPA') body.push(...figure(images.mapa, `Localização da ${v.COMUNIDADE}.`, `mapa de localização da ${v.COMUNIDADE}`, { w: 15.5 * PX_PER_CM, h: 17 * PX_PER_CM }));
+        else if (item === 'FIGURA_MAPA') body.push(...figure(images.mapa, `Localização da ${v.COMUNIDADE}.`, `imagem aérea com a localização da ${v.COMUNIDADE}`, { w: 15 * PX_PER_CM, h: 17.5 * PX_PER_CM }));
         else if (item === 'FIGURAS_VISTAS'){
           MEM.vistas.forEach((vista, k) => body.push(...figure((images.vistas || [])[k], vista.legenda, vista.legenda.replace(/\.$/, '').toLowerCase(), { w: 15 * PX_PER_CM, h: 8.5 * PX_PER_CM })));
         } else if (item && item.bullets){

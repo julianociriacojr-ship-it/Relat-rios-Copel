@@ -429,7 +429,9 @@
         <p class="hint">Abra o .kml no Google Earth (computador ou celular): as estacas aparecem marcadas sobre a imagem de satélite. Salve a imagem e use em “Trocar mapa” abaixo.</p>
       </section>
       <section class="card"><h2>Mapa de localização (Figura 1)</h2>
-        ${mapUrl ? `<img src="${mapUrl}" alt="Mapa" style="width:100%;border-radius:8px;border:1px solid var(--line)">` : '<div class="slot-empty">Sem mapa. Sai como [INSERIR FOTO: mapa de localização] no documento.</div>'}
+        ${mapUrl ? `<img src="${mapUrl}" alt="Mapa" style="width:100%;border-radius:8px;border:1px solid var(--line)">
+          <label style="display:flex;gap:10px;align-items:center;margin-top:10px;font-size:15px;min-height:44px"><input type="checkbox" id="map-skip" style="width:22px;height:22px"> Não incluir: deixar o espaço vazio para colar a imagem depois</label>`
+          : '<div class="slot-empty">Sem imagem. O documento sai com um quadro reservado do tamanho da imagem, com a legenda “Figura 1”, para você colar a montagem no Word.</div>'}
         <div class="photo-row" style="margin-top:10px">
           <label class="photo-btn secondary">🖼️ ${mapUrl ? 'Trocar mapa' : 'Escolher mapa'}<input type="file" accept="image/*" id="map-input"></label>
           ${custom ? '<button type="button" class="btn-ghost" id="btn-map-reset">Voltar ao padrão</button>' : ''}
@@ -466,7 +468,8 @@
       const done = overlay('Gerando memorial…');
       try{
         const cc = CFG.contactCard;
-        const mapa = custom ? { data: await blobBytes(custom.blob), width: custom.width, height: custom.height, type: 'jpg' } : (m.mapa ? await loadAsset(m.mapa) : null);
+        const skipMap = !!(document.getElementById('map-skip') || {}).checked;
+        const mapa = skipMap ? null : custom ? { data: await blobBytes(custom.blob), width: custom.width, height: custom.height, type: 'jpg' } : (m.mapa ? await loadAsset(m.mapa) : null);
         const images = {
           logo: await loadAsset('memorial/logo-vertical.png'),
           mapa,

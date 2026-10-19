@@ -61,5 +61,5 @@ test('outras comunidades usam os textos padrão com o próprio nome', async () =
   assert.match(visible, /Comunidade Sibuí, localizada no município de Guaraqueçaba - PR/);
   assert.match(visible, /Devido às características geográficas da Comunidade Sibuí, o transporte/);
   assert.match(visible, /acessíveis predominantemente por embarcações e trilhas locais/);
-  assert.match(visible, /\[INSERIR FOTO: mapa de localização/);
+  assert.match(visible, /\[INSERIR IMAGEM: imagem aérea com a localização da Comunidade Sibuí\]/);
 });
