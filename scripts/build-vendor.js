@@ -19,3 +19,10 @@ for (const [src, dst] of jobs){
   fs.writeFileSync(path.join(out, dst), `/* docx ${ver} (MIT) - https://github.com/dolanmiu/docx */\n` + res.code);
   console.log(dst, (res.code.length / 1024).toFixed(0) + ' KB');
 }
+
+// jsPDF (MIT): já vem minificado, só copia.
+const jspdfDir = path.join(__dirname, '..', 'node_modules', 'jspdf');
+const jspdfVer = JSON.parse(fs.readFileSync(path.join(jspdfDir, 'package.json'), 'utf8')).version;
+fs.writeFileSync(path.join(out, 'jspdf.umd.min.js'),
+  `/* jsPDF ${jspdfVer} (MIT) - https://github.com/parallax/jsPDF */\n` + fs.readFileSync(path.join(jspdfDir, 'dist', 'jspdf.umd.min.js'), 'utf8'));
+console.log('jspdf.umd.min.js', jspdfVer);

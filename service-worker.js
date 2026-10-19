@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solarminas-relatorios-v4';
+const CACHE_NAME = 'solarminas-relatorios-v5';
 const ASSETS = [
   './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   // Módulo Inspeção SAS (PEE Copel): tudo local para funcionar em modo avião
@@ -9,10 +9,13 @@ const ASSETS = [
   './inspecao-sas/db.js',
   './inspecao-sas/images.js',
   './inspecao-sas/report-docx.js',
+  './inspecao-sas/report-pdf.js',
   './inspecao-sas/app.js',
   './inspecao-sas/logo-solarminas.png',
+  './inspecao-sas/logo-solarminas.jpg',
   './vendor/docx.min.js',
-  './vendor/docx-layout.min.js'
+  './vendor/docx-layout.min.js',
+  './vendor/jspdf.umd.min.js'
 ];
 
 self.addEventListener('install', (e) => {

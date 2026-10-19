@@ -6,7 +6,7 @@ PWA estático publicado no **GitHub Pages** pelo workflow `.github/workflows/pag
 |---|---|
 | `index.html` | App original com os 4 módulos (RDO, Visita Técnica, Entrega, OS). Única mudança: o 5º cartão do menu. |
 | `inspecao-sas.html` + `inspecao-sas/` | Módulo **Inspeção SAS (PEE Copel)**. |
-| `vendor/` | docx 9.10 minificado (gerador do Word + estimador de paginação). Local, sem CDN. |
+| `vendor/` | docx 9.10 minificado (gerador do Word + estimador de paginação) e jsPDF 4.2 (PDF). Local, sem CDN. |
 | `service-worker.js`, `manifest.json`, ícones | PWA. O cache inclui todos os arquivos do módulo novo. |
 | `.github/workflows/pages.yml` | Testa e publica no GitHub Pages. |
 | `CLAUDE.md` | Especificação do módulo. |
@@ -25,6 +25,7 @@ PWA estático publicado no **GitHub Pages** pelo workflow `.github/workflows/pag
 - **Dados**: IndexedDB `solarminas-inspecao-sas`, com registros em `inspections` e fotos (Blob) em `photos`. Salva a cada alteração (debounce de 350 ms) e também ao sair, bloquear a tela ou trocar de app. Pede `navigator.storage.persist()`.
 - **Fotos**: redimensionadas no aparelho (lado maior 1600 px, JPEG 0,75; checklist 2200 px, JPEG 0,8). O círculo da Figura 2 é guardado como anotação relativa (`estacaCircles`) e também como imagem final (`estacaMarcada`).
 - **.docx**: `inspecao-sas/report-docx.js`. Os números de página do Sumário, do Índice de Ilustrações e do "Página X de Y" são gravados pelo estimador do docx (`vendor/docx-layout.min.js`). Se ele não conseguir diagramar, o documento sai com os campos marcados para o Word atualizar ao abrir.
+- **PDF**: `inspecao-sas/report-pdf.js` gera o PDF com a mesma estrutura do .docx. Como a paginação é feita no próprio gerador, o sumário e o índice saem com as páginas exatas. O botão "Gerar e baixar .docx + PDF" baixa os dois arquivos na hora; os botões "Baixar" abrem a janela "Salvar como" no Chrome/Edge do computador.
 - **Configuração**: `inspecao-sas/config.js` (prefixos, `86204`, código do documento, textos fixos, contato).
 
 ## Desenvolvimento
