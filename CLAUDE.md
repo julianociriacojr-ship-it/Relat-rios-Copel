@@ -32,7 +32,7 @@ Reaproveitar padrões, estilos e componentes do app. O módulo novo entra como 5
 3. **Armazenamento em IndexedDB** para registros e fotos (Blob). Não usar localStorage para fotos (limite de ~5 MB). Chamar `navigator.storage.persist()`.
 4. **Fotos**: capturar pela câmera (`input capture`), redimensionar no aparelho (lado maior ~1600 px, JPEG ~0,75). Foto do checklist manuscrito com resolução maior (lado maior ~2200 px) para manter legibilidade. Preservar proporção sempre.
 5. **Rascunho automático** a cada alteração. Perder dados em campo não é aceitável.
-6. **Exportação**: gerar .docx no aparelho. Entregar com Web Share API (arquivo) e fallback de download. Nome: `Relatorio_Visita_86204POE01.docx` (código completo da residência).
+6. **Exportação**: gerar .docx no aparelho. Entregar com Web Share API (arquivo) e fallback de download. Nome: `Relatorio_Visita_POE01.docx` (código da residência).
 7. Interface mobile, botões grandes, uso com uma mão e com luz forte (alto contraste).
 8. Sem login e sem sincronização nesta fase. Um aparelho por pessoa da equipe, dados locais.
 
@@ -42,7 +42,7 @@ Reaproveitar padrões, estilos e componentes do app. O módulo novo entra como 5
 
 **Formulário (5 passos)**
 
-1. **Identificação**: comunidade (lista das 12 localidades da seção 6), número da residência (2 dígitos), código completo gerado automaticamente (ex.: `86204POE01`), data da inspeção (padrão: hoje, editável), responsável técnico (padrão: Juliano Ciriaco da Silva Junior, editável).
+1. **Identificação**: comunidade (lista das 12 localidades da seção 6), número da residência (2 dígitos), código gerado automaticamente (ex.: `POE01`), data da inspeção (padrão: hoje, editável), responsável técnico (padrão: Juliano Ciriaco da Silva Junior, editável).
 2. **Checklist manuscrito**: tirar foto do formulário de papel preenchido e assinado (a assinatura do responsável e do proprietário continua no papel). Foto obrigatória. Permitir refazer. Dica de enquadramento na tela ("pegue a folha inteira, sem sombra, na horizontal"). Sem assinatura digital no app.
 3. **Fotos**: Figura 1 (frente da residência), Figura 2 (local da estaca) com ferramenta de **círculo vermelho** (toque e arraste para desenhar, desfazer, refazer), Figura 3 (estaca com o código escrito). Fotos adicionais opcionais com legenda livre (ex.: "Chuveiro"), numeradas em sequência (Figura 4 em diante).
 4. **Observações técnicas**: chips por tema (seção 7) mais campo de texto livre. Mostrar a **prévia do texto final** que vai para o documento, editável.
@@ -55,7 +55,7 @@ Inspection {
   id: string
   communityId: string          // ver seção 6
   houseNumber: string          // "01"
-  houseCode: string            // "86204POE01" (gerado)
+  houseCode: string            // "POE01" (gerado)
   inspectionDate: string       // ISO
   technician: string           // padrão "Juliano Ciriaco da Silva Junior"
   docCode: string              // "SAC-RELAT.SM 22/07/26" (config, não é a data da inspeção)
@@ -89,7 +89,8 @@ Guardar o círculo como anotação (coordenadas relativas) e também renderizar 
 | Guaraqueçaba | Saco do Morro | 8 | SDM |
 | | **Total** | **218** | |
 
-- Código completo = `86204` + prefixo + número (ex.: `86204POE01`). O `86204` deve ser uma constante de configuração.
+- Código da residência (relatório, estaca, nomes de arquivo) = prefixo + número (ex.: `POE01`). Decisão do Juliano em 19/10/2026.
+- Registro da residência no memorial descritivo (Tabela 1) = `86204` + prefixo + número (ex.: `86204POE01`), como no modelo. O `86204` é constante de configuração (`projectCode`).
 - Prefixos definidos em 19/10/2026 (Juliano: sem regra fixa, 3 letras práticas para escrever na estaca, sem repetir). POE e COT vêm dos relatórios já emitidos. Tabela editável em `inspecao-sas/config.js`. Não trocar depois da ida a campo: o código da casa e da estaca mudaria.
 - O número da residência valida contra o total de moradias da comunidade.
 
@@ -171,14 +172,14 @@ Estrutura e ordem **idênticas** aos modelos: Capa, Sumário, Índice de Ilustra
 2. Fechar e reabrir o app no meio do preenchimento não perde nada, inclusive fotos.
 3. O .docx abre no Word com cabeçalho em todas as páginas, "Página X de Y", legendas "Figura", sumário e índice com páginas corretas.
 4. Imagens sem distorção. Arquivo gerado com tamanho razoável para WhatsApp e e-mail (alvo abaixo de ~8 MB por relatório).
-5. Nome do arquivo: `Relatorio_Visita_86204POExx.docx`.
+5. Nome do arquivo: `Relatorio_Visita_POExx.docx`.
 6. Os 4 módulos existentes continuam funcionando como antes.
 7. Teste em celular real (Android e iPhone, se a equipe usar os dois) antes de ir a campo.
 
 ## 13. Pontos em aberto (confirmar com o Juliano)
 
 - Se `86204` é fixo para todo o projeto.
-- Código completo (`86204POE01`) em todos os documentos, ou só `POE01` no relatório? Padrão adotado aqui: completo.
+- Resolvido: relatório e estaca usam `POE01`; o memorial usa `86204POE01` na Tabela 1.
 - Qual das duas redações do primeiro parágrafo das Observações vale (POE01 ou COT01).
 - Data do código do documento (`22/07/26`): é data de emissão do modelo ou muda por relatório?
 - Fotos extras (ex.: Chuveiro, como no COT01) ficam permitidas ou o relatório volta a ter só 3 figuras?

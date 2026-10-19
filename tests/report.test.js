@@ -21,7 +21,7 @@ const OUT = path.join(__dirname, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 
 const base = {
-  communityId: 'poe', houseNumber: '01', houseCode: '86204POE01', inspectionDate: '2026-10-13',
+  communityId: 'poe', houseNumber: '01', houseCode: 'POE01', inspectionDate: '2026-10-13',
   technician: 'Juliano Ciriaco da Silva Junior', docCode: 'SAC-RELAT.SM 22/07/26', rev: '00',
   observations: { chips: { agua: 'poco', bomba: 'sim' }, freeText: '' }
 };
@@ -60,8 +60,16 @@ test('relatório completo', async () => {
   assert.match(xml, /PAGEREF Figura_1[\s\S]*?<w:t[^>]*>6</);
 });
 
+test('código curto no relatório e no nome do arquivo', async () => {
+  const { xml } = await build({ ...base, houseCode: '86204POE01' }, { extras: [] });   // registro antigo salvo com 86204
+  const visible = (xml.match(/<w:t[ >][^<]*/g) || []).join(' ');
+  assert.match(visible, /POE01/);
+  assert.doesNotMatch(visible, /86204/);
+  assert.strictEqual(reportFileName('POE01'), 'Relatorio_Visita_POE01.docx');
+});
+
 test('fotos faltando viram placeholder', async () => {
-  const { xml } = await build({ ...base, houseCode: '86204POE02', houseNumber: '02', inspectionDate: '' }, { extras: [] });
+  const { xml } = await build({ ...base, houseCode: 'POE02', houseNumber: '02', inspectionDate: '' }, { extras: [] });
   assert.match(xml, /\[INSERIR FOTO: frente da residência\]/);
   assert.match(xml, /\[INSERIR FOTO: checklist manuscrito/);
   assert.match(xml, /\[DATA DA INSPEÇÃO\]/);
@@ -69,7 +77,7 @@ test('fotos faltando viram placeholder', async () => {
 
 test('observações longas', async () => {
   const long = Array.from({ length: 25 }, (_, i) => `Parágrafo de observação adicional número ${i + 1}, registrado em campo para teste de paginação do documento gerado.`).join('\n');
-  await build({ ...base, houseCode: '86204POE03', observations: { chips: base.observations.chips, freeText: long } }, {
+  await build({ ...base, houseCode: 'POE03', observations: { chips: base.observations.chips, freeText: long } }, {
     checklist: jpg('checklist.jpg', 2200, 1556), frente: jpg('frente.jpg', 1600, 1200), extras: []
   });
 });

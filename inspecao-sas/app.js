@@ -84,7 +84,7 @@
     if (hnErr) add(hnErr);
     if (c && !c.prefix) add(`Prefixo do código de ${c.nome} ainda não confirmado. O código sai como ${OBS.buildHouseCode(i.communityId, i.houseNumber)}.`);
     if (OBS.houseCodeComplete(i.houseCode)){
-      const dup = S.list.find(o => o.id !== i.id && o.houseCode === i.houseCode);
+      const dup = S.list.find(o => o.id !== i.id && o.houseNumber && codeOf(o) === i.houseCode);
       if (dup) add(`Já existe outra inspeção com o código ${i.houseCode} neste aparelho.`);
     }
     if (!i.inspectionDate) add('Data da inspeção não informada.');
@@ -403,7 +403,7 @@
     S.list.filter(i => i.communityId === communityId && i.gps)
       .sort((a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''))
       .forEach(i => {
-        const code = codeOf(i);   // recalculado: vale mesmo se o prefixo mudou
+        const code = OBS.buildRegistryCode(i.communityId, i.houseNumber);   // registro do memorial: 86204POE01
         if (OBS.houseCodeComplete(code)) out[code] = { lat: i.gps.lat, lon: i.gps.lon };
       });
     return out;
@@ -749,7 +749,7 @@
     const w = document.getElementById('code-warn');
     if (w){
       const c = OBS.getCommunity(i.communityId);
-      const dup = OBS.houseCodeComplete(code) && S.list.find(o => o.id !== i.id && o.houseCode === code);
+      const dup = OBS.houseCodeComplete(code) && S.list.find(o => o.id !== i.id && o.houseNumber && codeOf(o) === code);
       w.textContent = c && !c.prefix ? 'Prefixo desta comunidade ainda não confirmado. Ajustar em inspecao-sas/config.js.'
         : dup ? `Atenção: já existe uma inspeção ${code} neste aparelho.` : '';
     }

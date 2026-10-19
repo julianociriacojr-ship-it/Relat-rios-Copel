@@ -22,12 +22,18 @@
     return null;
   }
 
-  // Código completo, ex.: 86204POE01. Partes ausentes viram placeholder visível.
+  // Código da residência (relatório, estaca, arquivos): prefixo + número,
+  // ex.: POE01. Partes ausentes viram placeholder visível.
   function buildHouseCode(communityId, houseNumber){
     const c = getCommunity(communityId);
     const prefix = c ? (c.prefix || '[PREFIXO A CONFIRMAR]') : '[COMUNIDADE]';
     const num = normalizeHouseNumber(houseNumber) || '[Nº]';
-    return CFG.projectCode + prefix + num;
+    return prefix + num;
+  }
+  // Registro da residência no memorial descritivo (Tabela 1), como no
+  // modelo: número do projeto + código, ex.: 86204POE01.
+  function buildRegistryCode(communityId, houseNumber){
+    return CFG.projectCode + buildHouseCode(communityId, houseNumber);
   }
   function houseCodeComplete(code){ return !!code && !code.includes('['); }
 
@@ -126,7 +132,7 @@
   // Remove travessões longos (regra do documento).
   function noLongDash(s){ return String(s || '').replace(/\s*[—–]\s*/g, ' - '); }
 
-  const api = { CHIPS, getCommunity, normalizeHouseNumber, houseNumberError, buildHouseCode, houseCodeComplete,
+  const api = { CHIPS, getCommunity, normalizeHouseNumber, houseNumberError, buildHouseCode, buildRegistryCode, houseCodeComplete,
     buildChipSentences, buildObservationText, noLongDash };
   root.SAS_OBS = api;
   if (typeof module !== 'undefined') module.exports = api;

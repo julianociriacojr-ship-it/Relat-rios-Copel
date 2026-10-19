@@ -49,7 +49,7 @@
     const c = OBS.getCommunity(communityId);
     const rows = [];
     for (let n = 1; n <= c.moradias; n++){
-      const code = OBS.buildHouseCode(communityId, String(n).padStart(2, '0'));
+      const code = OBS.buildRegistryCode(communityId, String(n).padStart(2, '0'));
       const p = coords[code];
       rows.push({ code, lat: p ? fmtCoord(p.lat) : null, lon: p ? fmtCoord(p.lon) : null });
     }

@@ -48,7 +48,7 @@
 
     const community = OBS.getCommunity(insp.communityId);
     const local = community ? community.nome : '[LOCALIDADE]';
-    const houseCode = insp.houseCode || OBS.buildHouseCode(insp.communityId, insp.houseNumber);
+    const houseCode = insp.houseNumber ? OBS.buildHouseCode(insp.communityId, insp.houseNumber) : (insp.houseCode || '[CÓDIGO DA RESIDÊNCIA]');
     const docCode = insp.docCode || CFG.docCode;
     const rev = insp.rev || CFG.rev;
     const tech = (insp.technician || '').trim() || '[RESPONSÁVEL TÉCNICO]';

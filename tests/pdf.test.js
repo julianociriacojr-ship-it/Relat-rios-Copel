@@ -17,7 +17,7 @@ const OUT = path.join(__dirname, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 
 const base = {
-  communityId: 'poe', houseNumber: '01', houseCode: '86204POE01', inspectionDate: '2026-10-13',
+  communityId: 'poe', houseNumber: '01', houseCode: 'POE01', inspectionDate: '2026-10-13',
   technician: 'Juliano Ciriaco da Silva Junior', docCode: 'SAC-RELAT.SM 22/07/26', rev: '00',
   observations: { chips: { agua: 'poco', bomba: 'sim' }, freeText: '' }
 };
@@ -30,14 +30,14 @@ test('pdf completo', () => {
     extras: [{ ...jpg('frente.jpg', 1600, 1200), caption: 'Chuveiro' }]
   } });
   fs.writeFileSync(path.join(OUT, pdfFileName(base.houseCode)), Buffer.from(buf));
-  assert.strictEqual(pdfFileName(base.houseCode), 'Relatorio_Visita_86204POE01.pdf');
+  assert.strictEqual(pdfFileName(base.houseCode), 'Relatorio_Visita_POE01.pdf');
   assert.ok(pages(buf) >= 7);
   assert.ok(buf.byteLength < 8 * 1024 * 1024);
 });
 
 test('pdf com fotos faltando e observações longas', () => {
   const long = Array.from({ length: 25 }, (_, i) => `Parágrafo de observação adicional número ${i + 1}, registrado em campo para teste de paginação do documento gerado.`).join('\n');
-  const buf = buildPdf({ inspection: { ...base, houseCode: '86204POE03', inspectionDate: '', observations: { chips: base.observations.chips, freeText: long } }, logo, card, images: { extras: [] } });
-  fs.writeFileSync(path.join(OUT, 'Relatorio_Visita_86204POE03.pdf'), Buffer.from(buf));
+  const buf = buildPdf({ inspection: { ...base, houseCode: 'POE03', inspectionDate: '', observations: { chips: base.observations.chips, freeText: long } }, logo, card, images: { extras: [] } });
+  fs.writeFileSync(path.join(OUT, 'Relatorio_Visita_POE03.pdf'), Buffer.from(buf));
   assert.ok(pages(buf) >= 8);
 });

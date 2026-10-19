@@ -5,7 +5,8 @@
 ====================================================================== */
 (function(root){
   const SAS_CONFIG = {
-    // Prefixo numérico do projeto. CONFIRMAR se é fixo para as 218 moradias.
+    // Número do projeto. Entra só no registro da Tabela 1 do memorial
+    // (86204POE01). No relatório e na estaca o código é só POE01.
     projectCode: '86204',
 
     // Código do documento no cabeçalho. CONFIRMAR se a data é de emissão do
