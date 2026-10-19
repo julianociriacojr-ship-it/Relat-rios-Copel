@@ -26,3 +26,7 @@ const jspdfVer = JSON.parse(fs.readFileSync(path.join(jspdfDir, 'package.json'),
 fs.writeFileSync(path.join(out, 'jspdf.umd.min.js'),
   `/* jsPDF ${jspdfVer} (MIT) - https://github.com/parallax/jsPDF */\n` + fs.readFileSync(path.join(jspdfDir, 'dist', 'jspdf.umd.min.js'), 'utf8'));
 console.log('jspdf.umd.min.js', jspdfVer);
+
+// JSZip (MIT): backup das inspeções em .zip. Já vem minificado.
+fs.copyFileSync(path.join(__dirname, '..', 'node_modules', 'jszip', 'dist', 'jszip.min.js'), path.join(out, 'jszip.min.js'));
+console.log('jszip.min.js');
