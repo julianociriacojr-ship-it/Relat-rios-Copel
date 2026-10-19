@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solarminas-relatorios-v15';
+const CACHE_NAME = 'solarminas-relatorios-v16';
 const ASSETS = [
   './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   // Módulo Inspeção SAS (PEE Copel): tudo local para funcionar em modo avião
@@ -9,6 +9,7 @@ const ASSETS = [
   './inspecao-sas/memorial-config.js',
   './inspecao-sas/geo.js',
   './inspecao-sas/backup.js',
+  './inspecao-sas/central.js',
   './inspecao-sas/report-memorial.js',
   './inspecao-sas/db.js',
   './inspecao-sas/images.js',
@@ -44,6 +45,8 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // Central de relatórios (API): sempre direto na rede, nunca do cache.
+  if (new URL(e.request.url).pathname.startsWith('/api/')) return;
   e.respondWith(
     caches.match(e.request, { ignoreSearch: e.request.mode === 'navigate' }).then((cached) => {
       const networkFetch = fetch(e.request)

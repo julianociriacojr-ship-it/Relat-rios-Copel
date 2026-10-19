@@ -6,7 +6,7 @@
 ====================================================================== */
 (function(){
   const CFG = window.SAS_CONFIG, OBS = window.SAS_OBS, DB = window.SAS_DB, IMG = window.SAS_IMG, REP = window.SAS_REPORT, PDF = window.SAS_PDF;
-  const GEO = window.SAS_GEO, BACKUP = window.SAS_BACKUP, MEMORIAL = window.SAS_MEMORIAL, MEMCFG = window.SAS_MEMORIAL_CONFIG;
+  const GEO = window.SAS_GEO, BACKUP = window.SAS_BACKUP, MEMORIAL = window.SAS_MEMORIAL, MEMCFG = window.SAS_MEMORIAL_CONFIG, CENTRAL = window.SAS_CENTRAL;
   const WORD_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const PDF_MIME = 'application/pdf';
   const STEPS = ['Identificação', 'Checklist', 'Fotos', 'Observações', 'Revisão'];
@@ -281,6 +281,7 @@
           <button type="button" class="btn-ghost" id="btn-backup" style="flex:1" ${items.length ? '' : 'disabled'}>💾 Backup${fc ? ' da comunidade' : ' de tudo'}</button>
           <label class="btn-ghost" style="flex:1;display:flex;align-items:center;justify-content:center;cursor:pointer">📥 Restaurar backup<input type="file" id="restore-input" accept=".zip,application/zip" multiple style="display:none"></label>
         </div>
+        ${centralCardHTML(items)}
         ${fc ? `<a class="btn-teal" href="#/memorial/${fc.id}" style="text-decoration:none;display:flex;align-items:center;justify-content:center">📄 Memorial descritivo · ${esc(fc.nome)}</a>`
              : '<p class="hint" style="margin:0">Para gerar o memorial descritivo, escolha a comunidade no filtro acima.</p>'}
       </div>
@@ -290,7 +291,7 @@
           <div class="main">
             <div class="code">${esc(i.houseNumber ? codeOf(i) : 'Sem código')}</div>
             <div class="sub">${esc(c ? c.nome : 'Comunidade não definida')} · ${esc(fmtDate(i.inspectionDate))}</div>
-            <div class="sub">${i.gps ? '📍 com coordenadas' : '📍 sem coordenadas'}${needsBackup(i) ? ' · 💾 sem backup' : ' · 💾 backup ok'}</div>
+            <div class="sub">${i.gps ? '📍 com coordenadas' : '📍 sem coordenadas'}${needsBackup(i) ? ' · 💾 sem backup' : ' · 💾 backup ok'}${CENTRAL.ativo() && i.status === 'exported' ? (needsCentral(i) ? ' · ☁️ aguardando envio' : ' · ☁️ na central') : ''}</div>
           </div>
           <span class="status ${i.status}">${STATUS_LABEL[i.status] || i.status}</span>
         </button>`;
@@ -308,6 +309,7 @@
     view.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { location.hash = `#/i/${b.dataset.open}/1`; });
     document.getElementById('btn-backup').onclick = () => backupInspections(items, fc ? fc.nome : 'todas');
     document.getElementById('restore-input').onchange = e => restoreBackups(e.target);
+    bindCentralCard();
     const est = await DB.estimate();
     const persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted().catch(() => false) : false;
     const hint = document.getElementById('storage-hint');
@@ -386,6 +388,84 @@
     }
     renderList();
   }
+
+  /* ---------------- central de relatórios ---------------- */
+  // Vai para a central a inspeção exportada (finalizada) cuja versão atual
+  // ainda não subiu. Rascunhos não sobem sozinhos.
+  const needsCentral = i => i.status === 'exported' && i.centralVersion !== i.updatedAt;
+  let syncing = false;
+  async function sendToCentral(rec){
+    const fresh = await DB.getInspection(rec.id);
+    if (!fresh) return;
+    const { docx, pdf } = await buildDocs(fresh);
+    const backup = await BACKUP.build([fresh]);
+    const c = OBS.getCommunity(fresh.communityId);
+    await CENTRAL.enviar(fresh, c ? c.nome : '', { docx, pdf, backup });
+    const cur = await DB.getInspection(fresh.id);          // grava sem mexer no updatedAt
+    if (cur && cur.updatedAt === fresh.updatedAt){
+      cur.centralAt = new Date().toISOString(); cur.centralVersion = fresh.updatedAt;
+      await DB.putInspection(cur);
+      if (S.insp && S.insp.id === cur.id){ S.insp.centralAt = cur.centralAt; S.insp.centralVersion = cur.centralVersion; }
+    }
+  }
+  async function syncCentral({ silencioso, apenas } = {}){
+    if (!CENTRAL.ativo() || syncing) return;
+    if (!CENTRAL.sessao()){ if (!silencioso) loginCentral(); return; }
+    if (!navigator.onLine){ if (!silencioso) toast('Sem internet. As inspeções sobem sozinhas quando houver sinal.', true, 4000); return; }
+    syncing = true;
+    let ok = 0, falha = null;
+    try{
+      const todas = await DB.listInspections();
+      const fila = todas.filter(i => apenas ? i.id === apenas : needsCentral(i));
+      for (const i of fila){
+        try { await sendToCentral(i); ok++; }
+        catch(err){ falha = err; if (err.auth || err.offline) break; }
+      }
+      if (ok) toast(`☁️ ${ok} ${ok === 1 ? 'inspeção enviada' : 'inspeções enviadas'} para a central`, false, 3500);
+      if (falha && !(silencioso && falha.offline)) toast('Central: ' + falha.message, true, 5000);
+      if (falha && falha.auth && !silencioso) loginCentral();
+    } finally { syncing = false; }
+    if (ok){ if (S.insp && S.step === 5) renderStep(); else if (!S.insp && !location.hash.startsWith('#/memorial')) renderList(); }
+  }
+  function loginCentral(){
+    const box = document.createElement('div');
+    box.className = 'overlay';
+    box.innerHTML = `<div style="max-width:92vw;width:360px;text-align:left">☁️ Entrar na central
+      <label class="f" for="c-u">Usuário</label><input id="c-u" type="text" autocomplete="username" autocapitalize="none">
+      <label class="f" for="c-s">Senha</label><input id="c-s" type="password" autocomplete="current-password">
+      <div class="err" id="c-err"></div>
+      <div class="photo-row" style="margin-top:12px"><button type="button" class="btn-teal" data-a="ok">Entrar</button><button type="button" class="btn-ghost" data-a="cancel" style="flex:1">Cancelar</button></div>
+      <p class="hint" style="margin-bottom:0">Precisa de internet só agora. O acesso vale por 60 dias, inclusive em campo.</p></div>`;
+    document.body.appendChild(box);
+    box.querySelector('#c-u').focus();
+    box.addEventListener('click', async e => {
+      const a = e.target.closest('[data-a]'); if (!a) return;
+      if (a.dataset.a === 'cancel'){ box.remove(); return; }
+      a.disabled = true;
+      try{
+        const sess = await CENTRAL.login(box.querySelector('#c-u').value, box.querySelector('#c-s').value);
+        box.remove();
+        toast(`✓ Conectado à central como ${sess.nome}`);
+        syncCentral({ silencioso: true });
+        if (!S.insp) renderList(); else renderStep();
+      }catch(err){ box.querySelector('#c-err').textContent = err.message; a.disabled = false; }
+    });
+  }
+  function centralCardHTML(items){
+    if (!CENTRAL.ativo()) return '';
+    const sess = CENTRAL.sessao();
+    const pend = items.filter(needsCentral).length;
+    if (!sess) return `<div class="warn-box">☁️ <b>Central de relatórios:</b> entre uma vez (com internet) para as inspeções finalizadas subirem sozinhas para o SAT.
+      <button type="button" class="btn-line" id="btn-central-login">Entrar na central</button></div>`;
+    return `<div class="${pend ? 'warn-box' : 'all-ok'}" style="margin:0">☁️ Central: <b>${esc(sess.nome)}</b> · ${pend ? `${pend} aguardando envio` : 'tudo enviado'}
+      <div class="photo-row" style="margin-top:8px">${pend ? '<button type="button" class="btn-teal" id="btn-central-sync">Enviar agora</button>' : ''}<button type="button" class="btn-ghost" id="btn-central-sair" style="flex:1">Sair da central</button></div></div>`;
+  }
+  function bindCentralCard(){
+    const l = document.getElementById('btn-central-login'); if (l) l.onclick = loginCentral;
+    const sy = document.getElementById('btn-central-sync'); if (sy) sy.onclick = () => syncCentral();
+    const sa = document.getElementById('btn-central-sair'); if (sa) sa.onclick = () => { if (confirm('Sair da central neste celular? As inspeções continuam no aparelho.')){ CENTRAL.sair(); renderList(); } };
+  }
+  window.addEventListener('online', () => syncCentral({ silencioso: true }));
 
   /* ---------------- memorial descritivo ---------------- */
   const assetCache = {};
@@ -658,6 +738,13 @@
         <p class="hint">O backup (.zip) guarda tudo desta inspeção, inclusive fotos e coordenadas. Mande para o WhatsApp, e-mail ou Drive assim que tiver sinal.</p>
         <div class="export-result" id="export-result">${S.lastExport ? exportResultHTML() : ''}</div>
       </section>
+      ${CENTRAL.ativo() ? `<section class="card"><h2>☁️ Central de relatórios</h2>
+        ${i.status !== 'exported' ? '<p class="hint" style="margin-top:0">Depois de gerar os arquivos, a inspeção sobe sozinha para a central quando houver internet.</p>'
+          : needsCentral(i) ? '<div class="warn-box" style="margin-top:0">Aguardando envio (sobe sozinha quando houver internet).</div>'
+          : `<div class="all-ok">✓ Na central desde ${esc(new Date(i.centralAt).toLocaleString('pt-BR'))}</div>`}
+        ${i.status === 'exported' ? `<button type="button" class="btn-line" id="btn-central-now">${needsCentral(i) ? 'Enviar agora' : 'Enviar de novo'}</button>` : ''}
+        ${CENTRAL.sessao() ? '' : '<button type="button" class="btn-line" id="btn-central-login">Entrar na central</button>'}
+      </section>` : ''}
       <button type="button" class="btn-line danger" id="btn-delete">Excluir esta inspeção do aparelho</button>`;
     }
 
@@ -742,6 +829,8 @@
     });
 
     const btnDocx = document.getElementById('btn-docx'); if (btnDocx) btnDocx.onclick = exportFiles;
+    const cNow = document.getElementById('btn-central-now'); if (cNow) cNow.onclick = () => syncCentral({ apenas: S.insp.id });
+    bindCentralCard();
     bindExportButtons();
     const del = document.getElementById('btn-delete'); if (del) del.onclick = async () => {
       if (!confirm(`Excluir a inspeção ${S.insp.houseCode} e todas as fotos dela deste aparelho? Não dá para desfazer.`)) return;
@@ -863,6 +952,27 @@
   const sizeMB = b => (b.size / 1048576).toFixed(2) + ' MB';
 
   // Gera o .docx e o PDF juntos e já baixa os dois.
+  // Gera o .docx e o PDF de uma inspeção (usado no exportar e no envio à central).
+  async function buildDocs(i){
+    const images = {
+      checklist: await loadImg(i.photos.checklist),
+      frente: await loadImg(i.photos.frente),
+      estaca: await loadImg(i.photos.estacaMarcada || i.photos.estaca),
+      estacaCodigo: await loadImg(i.photos.estacaCodigo),
+      chuveiro: await loadImg(i.photos.chuveiro),
+      extras: []
+    };
+    for (const e of i.extraPhotos){
+      const img = await loadImg(e.photoId);
+      images.extras.push(img ? { ...img, caption: e.caption } : { caption: e.caption });
+    }
+    const cc = CFG.contactCard;
+    const card = cc ? await loadLogo(cc.file, 'png', cc.width, cc.height) : null;
+    const docx = new Blob([await REP.buildReport({ inspection: i, images, logo: await loadLogo('logo-solarminas.png', 'png'), card, outputType: 'blob' })], { type: WORD_MIME });
+    const pdf = new Blob([PDF.buildPdf({ inspection: i, images, logo: await loadLogo('logo-solarminas.jpg', 'jpg'), card })], { type: PDF_MIME });
+    return { docx, pdf };
+  }
+
   async function exportFiles(){
     const btn = document.getElementById('btn-docx');
     btn.disabled = true;
@@ -870,22 +980,7 @@
     try{
       await flushSave();
       const i = S.insp;
-      const images = {
-        checklist: await loadImg(i.photos.checklist),
-        frente: await loadImg(i.photos.frente),
-        estaca: await loadImg(i.photos.estacaMarcada || i.photos.estaca),
-        estacaCodigo: await loadImg(i.photos.estacaCodigo),
-        chuveiro: await loadImg(i.photos.chuveiro),
-        extras: []
-      };
-      for (const e of i.extraPhotos){
-        const img = await loadImg(e.photoId);
-        images.extras.push(img ? { ...img, caption: e.caption } : { caption: e.caption });
-      }
-      const cc = CFG.contactCard;
-      const card = cc ? await loadLogo(cc.file, 'png', cc.width, cc.height) : null;
-      const docxBlob = await REP.buildReport({ inspection: i, images, logo: await loadLogo('logo-solarminas.png', 'png'), card, outputType: 'blob' });
-      const pdfBuf = PDF.buildPdf({ inspection: i, images, logo: await loadLogo('logo-solarminas.jpg', 'jpg'), card });
+      const { docx: docxBlob, pdf: pdfBuf } = await buildDocs(i);
       i.exportedAt = new Date().toISOString();
       await flushSave();
       // Marca como exportado e com backup antes de montar o .zip, para a cópia
@@ -905,6 +1000,7 @@
       // Baixa os três arquivos direto (o navegador pode pedir para permitir vários downloads).
       S.lastExport.files.forEach((f, n) => setTimeout(() => downloadViaLink(f), n * 600));
       toast('✓ .docx, PDF e backup gerados. Baixando para a pasta Downloads…', false, 4000);
+      setTimeout(() => syncCentral({ silencioso: true }), 3000);   // sobe para a central se houver sinal
     }catch(err){
       done();
       console.error(err);
@@ -987,6 +1083,7 @@
       view.innerHTML = `<div class="card"><h2>Armazenamento indisponível</h2><p>Este navegador não liberou o banco de dados local (IndexedDB). Em modo anônimo/privado ele pode ser bloqueado. Abra o app normalmente ou pela tela inicial.</p></div>`;
       return;
     }
-    route();
+    await route();
+    setTimeout(() => syncCentral({ silencioso: true }), 4000);
   })();
 })();

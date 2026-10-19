@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central de Relatórios · Solar Minas</title>
+<style>
+  :root{ --teal:#0B4A5C; --teal2:#12677F; --amber:#E8912D; --amber-soft:#FBEBD6; --bg:#F5F4F1; --card:#fff; --ink:#111719; --soft:#4A585D; --line:#D6D3CD; --ok:#1F6B43; --danger:#A3271B; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:var(--ink); font-size:15px; }
+  header{ background:#fff; border-bottom:1px solid var(--line); padding:12px 20px; display:flex; align-items:center; gap:14px; }
+  header h1{ margin:0; font-size:18px; color:var(--teal); flex:1; }
+  header .who{ color:var(--soft); font-size:14px; }
+  main{ max-width:1200px; margin:0 auto; padding:16px 20px 40px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  input, select, button{ font:inherit; }
+  input, select{ padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  button{ cursor:pointer; border-radius:8px; border:1px solid var(--line); background:#fff; padding:8px 12px; font-weight:600; }
+  button.primary{ background:var(--teal); border-color:var(--teal); color:#fff; }
+  button.link{ border:none; background:none; color:var(--teal2); padding:4px 6px; text-decoration:underline; font-weight:600; }
+  button:disabled{ opacity:.5; cursor:default; }
+  #login{ max-width:360px; margin:60px auto; }
+  #login label{ display:block; font-weight:700; margin:12px 0 6px; }
+  #login input{ width:100%; }
+  .tools{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .tools .count{ color:var(--soft); margin-left:auto; }
+  table{ width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  th, td{ text-align:left; padding:10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ background:#EFEDE8; font-size:13px; color:var(--soft); }
+  td .code{ font-weight:800; color:var(--teal); font-size:16px; }
+  td .sub{ color:var(--soft); font-size:13px; }
+  .pill{ display:inline-block; padding:3px 9px; border-radius:12px; font-size:12px; font-weight:800; }
+  .s-recebido{ background:#FFF4E0; color:#6b4710; } .s-em_revisao{ background:#D6E6EC; color:var(--teal); }
+  .s-revisado{ background:#DCEFE3; color:var(--ok); } .s-enviado_cliente{ background:#E6E1F5; color:#3e2f7a; }
+  .err{ color:var(--danger); font-weight:600; margin-top:10px; }
+  .hist{ font-size:12px; color:var(--soft); margin-top:6px; }
+  .empty{ padding:30px; text-align:center; color:var(--soft); }
+  #toast{ position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--ok); color:#fff; padding:10px 16px; border-radius:8px; font-weight:700; display:none; z-index:9; }
+  #toast.erro{ background:var(--danger); }
+  @media (max-width:800px){ thead{ display:none; } tr{ display:block; border-bottom:2px solid var(--line); } td{ display:block; border:none; padding:6px 10px; } }
+</style>
+</head>
+<body>
+<header><h1>Central de Relatórios · Solar Minas</h1><span class="who" id="who"></span><button id="sair" style="display:none">Sair</button></header>
+<main>
+  <div class="card" id="login" style="display:none">
+    <h2 style="margin:0;color:var(--teal)">Entrar</h2>
+    <label for="u">Usuário</label><input id="u" autocomplete="username">
+    <label for="s">Senha</label><input id="s" type="password" autocomplete="current-password">
+    <button class="primary" id="entrar" style="width:100%;margin-top:16px">Entrar</button>
+    <div class="err" id="login-err"></div>
+  </div>
+  <div id="app" style="display:none">
+    <div class="tools">
+      <select id="f-com"><option value="">Todas as comunidades</option></select>
+      <select id="f-status"><option value="">Todos os status</option></select>
+      <input id="f-busca" placeholder="Buscar código ou técnico">
+      <button id="atualizar">Atualizar</button>
+      <span class="count" id="count"></span>
+    </div>
+    <table><thead><tr><th>Residência</th><th>Técnico</th><th>Status</th><th>Arquivos do técnico</th><th>Versão revisada (SAT)</th></tr></thead><tbody id="linhas"></tbody></table>
+  </div>
+</main>
+<div id="toast"></div>
+<script>
+const STATUS = { recebido: 'Recebido', em_revisao: 'Em revisão', revisado: 'Revisado', enviado_cliente: 'Enviado ao cliente' };
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dt = iso => iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+const dataBR = iso => iso ? iso.slice(0, 10).split('-').reverse().join('/') : '';
+let token = ''; try { token = localStorage.getItem('central_token') || ''; } catch(e){}
+let eu = null, lista = [];
+function toast(m, erro){ const t = $('toast'); t.textContent = m; t.className = erro ? 'erro' : ''; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3500); }
+
+async function api(path, opts = {}){
+  const r = await fetch(path, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + token } });
+  if (r.status === 401){ sair(); throw new Error('Sessão expirada'); }
+  if (!r.ok){ let e = r.statusText; try { e = (await r.json()).erro || e; } catch(x){} throw new Error(e); }
+  return r;
+}
+function sair(){ token = ''; try { localStorage.removeItem('central_token'); } catch(e){} mostrar(); }
+async function mostrar(){
+  if (!token){ $('login').style.display = 'block'; $('app').style.display = 'none'; $('sair').style.display = 'none'; $('who').textContent = ''; return; }
+  try { eu = await (await api('/api/eu')).json(); } catch(e){ return; }
+  $('login').style.display = 'none'; $('app').style.display = 'block'; $('sair').style.display = '';
+  $('who').textContent = `${eu.nome} · ${eu.papel === 'tecnico' ? 'técnico' : eu.papel.toUpperCase()}`;
+  carregar();
+}
+$('entrar').onclick = async () => {
+  $('login-err').textContent = '';
+  const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario: $('u').value, senha: $('s').value }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok){ $('login-err').textContent = d.erro || 'Falha no login.'; return; }
+  token = d.token; try { localStorage.setItem('central_token', token); } catch(e){}
+  mostrar();
+};
+$('s').onkeydown = e => { if (e.key === 'Enter') $('entrar').click(); };
+$('sair').onclick = sair;
+$('atualizar').onclick = () => carregar();
+['f-com', 'f-status'].forEach(id => $(id).onchange = render);
+$('f-busca').oninput = render;
+Object.entries(STATUS).forEach(([v, t]) => $('f-status').insertAdjacentHTML('beforeend', `<option value="${v}">${t}</option>`));
+
+async function carregar(){
+  try { lista = await (await api('/api/inspecoes')).json(); } catch(e){ toast(e.message, true); return; }
+  const coms = [...new Map(lista.map(i => [i.communityId, i.comunidade])).entries()].sort((a, b) => (a[1] || '').localeCompare(b[1] || ''));
+  const sel = $('f-com').value;
+  $('f-com').innerHTML = '<option value="">Todas as comunidades</option>' + coms.map(([id, n]) => `<option value="${esc(id)}" ${id === sel ? 'selected' : ''}>${esc(n || id)}</option>`).join('');
+  render();
+}
+function render(){
+  const fc = $('f-com').value, fs = $('f-status').value, q = $('f-busca').value.trim().toLowerCase();
+  const itens = lista.filter(i => (!fc || i.communityId === fc) && (!fs || i.status === fs) &&
+    (!q || (i.houseCode + ' ' + i.technician + ' ' + i.enviadoPorNome).toLowerCase().includes(q)))
+    .sort((a, b) => (a.houseCode || '').localeCompare(b.houseCode || '', 'pt-BR', { numeric: true }));
+  $('count').textContent = `${itens.length} de ${lista.length}`;
+  const sat = eu && eu.papel !== 'tecnico';
+  $('linhas').innerHTML = itens.length ? itens.map(i => {
+    const a = i.arquivos || {};
+    const bt = (tipo, rot) => a[tipo] ? `<button class="link" data-baixar="${esc(i.id)}" data-tipo="${tipo}">${rot}</button>` : '';
+    return `<tr>
+      <td><div class="code">${esc(i.houseCode)}</div><div class="sub">${esc(i.comunidade)}</div><div class="sub">Inspeção ${esc(dataBR(i.inspectionDate))}</div>
+        ${i.gps ? `<div class="sub">📍 ${i.gps.lat.toFixed(6).replace('.', ',')} · ${i.gps.lon.toFixed(6).replace('.', ',')}</div>` : ''}</td>
+      <td>${esc(i.enviadoPorNome || i.enviadoPor)}<div class="sub">enviado ${esc(dt(i.recebidoEm))}</div></td>
+      <td>${sat ? `<select data-status="${esc(i.id)}">${Object.entries(STATUS).map(([v, t]) => `<option value="${v}" ${i.status === v ? 'selected' : ''}>${t}</option>`).join('')}</select>`
+                : `<span class="pill s-${esc(i.status)}">${esc(STATUS[i.status] || i.status)}</span>`}
+        <div class="hist">${(i.historico || []).slice(-3).map(h => `${esc(dt(h.em))} · ${esc(h.acao.replace(/^status: (\w+)$/, (x, v) => 'status: ' + (STATUS[v] || v)))}`).join('<br>')}</div></td>
+      <td>${bt('docx', '⬇ .docx')} ${bt('pdf', '⬇ PDF')} ${bt('backup', '⬇ backup .zip')}</td>
+      <td>${bt('revisado', '⬇ revisado .docx')} ${bt('revisado_pdf', '⬇ revisado PDF')}
+        ${sat ? `<div style="margin-top:6px"><label class="sub">Enviar revisado (.docx ou .pdf):<br><input type="file" accept=".docx,.pdf" data-revisar="${esc(i.id)}"></label></div>` : ''}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="5" class="empty">Nenhuma inspeção recebida ainda.</td></tr>';
+  document.querySelectorAll('[data-baixar]').forEach(b => b.onclick = () => baixar(b.dataset.baixar, b.dataset.tipo));
+  document.querySelectorAll('[data-status]').forEach(s => s.onchange = () => mudarStatus(s.dataset.status, s.value));
+  document.querySelectorAll('[data-revisar]').forEach(f => f.onchange = () => enviarRevisado(f.dataset.revisar, f.files[0]));
+}
+async function baixar(id, tipo){
+  try{
+    const r = await api(`/api/inspecoes/${id}/arquivos/${tipo}`);
+    const nome = (r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || tipo;
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a'); a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }catch(e){ toast(e.message, true); }
+}
+async function mudarStatus(id, status){
+  try { await api(`/api/inspecoes/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }); toast('Status atualizado'); carregar(); }
+  catch(e){ toast(e.message, true); }
+}
+async function enviarRevisado(id, file){
+  if (!file) return;
+  const tipo = /\.pdf$/i.test(file.name) ? 'revisado_pdf' : 'revisado';
+  try { await api(`/api/inspecoes/${id}/arquivos/${tipo}`, { method: 'PUT', body: file }); toast('Versão revisada enviada'); carregar(); }
+  catch(e){ toast(e.message, true); }
+}
+mostrar();
+</script>
+</body>
+</html>

@@ -41,6 +41,10 @@
       checklistMaxSide: 2200, checklistQuality: 0.8
     },
 
+    // Central de relatórios na VPS (servidor/central). Vazio = recurso desligado.
+    // Ex.: 'https://relatorios.solarminas.com.br'
+    central: { url: '' },
+
     // Fotos extras (Figura 4 em diante). CONFIRMAR se continuam permitidas.
     allowExtraPhotos: true,
 
