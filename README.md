@@ -34,7 +34,9 @@ O preenchimento e os documentos continuam iguais. Mudou só o que fica por trás
 
 - **Rascunho**: `vendor/storage-shim.js` cria o `window.storage` que o `index.html` espera e grava no IndexedDB do aparelho (`solarminas-rascunhos`). Dentro do Claude, onde a API já existe, não troca nada.
 - **Sem internet**: jsPDF 2.5.1 e docx 8.5.0 (as mesmas versões de antes) ficam em `vendor/legado/` e entram no cache do service worker.
-- **Central**: `legado/central-legado.js` observa cada PDF e Word gerado, guarda numa fila no aparelho (`solarminas-envios`) e envia para a central quando houver sinal e login. O login fica num cartão na tela inicial e é o mesmo da Inspeção SAS. No painel, o filtro "Todos os relatórios" separa por tipo. Gerar de novo o mesmo arquivo (mesma obra e data) atualiza o registro na central.
+- **Central**: o PDF continua só no celular (gerar e compartilhar no WhatsApp). O botão ☁️ do rodapé (no lugar do antigo 📝 Word) monta o Word e manda para a central (`legado/central-legado.js`); sem sinal, fica numa fila no aparelho (`solarminas-envios`) e sobe sozinho depois. Pede login na primeira vez (o mesmo da Inspeção SAS). Gerar de novo o mesmo arquivo (mesma obra e data) atualiza o registro na central.
+- **Inspeção SAS**: "Gerar e baixar .docx + PDF + backup" continua igual. O envio para a central é opcional, pelo botão "☁️ Enviar para a central" (vai o Word e o backup .zip). Depois de enviada, se a inspeção mudar, a versão nova sobe sozinha.
+- **Painel do SAT**: só baixar. O SAT baixa o Word, ajusta e manda ao cliente por conta própria; nada volta revisado para a central. Filtro por tipo de relatório.
 
 ## Coordenadas, backup e memorial
 

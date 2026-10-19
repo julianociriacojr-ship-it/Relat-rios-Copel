@@ -1,8 +1,9 @@
 /* ======================================================================
    RDO, VISITA, ENTREGA E OS — ENVIO PARA A CENTRAL DE RELATÓRIOS
-   Cada PDF ou Word gerado nesses 4 relatórios entra numa fila no aparelho
-   (IndexedDB) e sobe para a central quando houver sinal e login.
-   Nada muda no jeito de preencher nem de gerar: só observa o arquivo gerado.
+   O PDF continua só no celular, para compartilhar no WhatsApp.
+   O botão ☁️ (no lugar do antigo 📝 Word) gera o Word e manda para a central,
+   onde o SAT baixa, ajusta e envia ao cliente. Sem sinal, o Word fica numa
+   fila no aparelho (IndexedDB) e sobe sozinho quando a internet voltar.
    Usa o mesmo login da Inspeção SAS (inspecao-sas/central.js).
 ====================================================================== */
 (function(){
@@ -55,6 +56,8 @@
     try{
       if (!C.sessao()) return;
       for (const it of await fila()){
+        // versões anteriores também guardavam o PDF; agora só o Word vai para a central
+        if (it.arq !== 'docx'){ await operar('readwrite', s => s.delete(it.chave)); continue; }
         // um registro por relatório e por técnico; regerar o mesmo arquivo atualiza o registro
         const id = (it.nomeBase + '-' + C.sessao().usuario).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
         await C.req(`/api/inspecoes/${encodeURIComponent(id)}/meta`, {
@@ -68,20 +71,64 @@
     }catch(e){ erro = e; }
     finally{
       enviando = false;
-      if (enviados && typeof showToast === 'function') showToast(`☁️ ${enviados} arquivo(s) enviado(s) para a central`, 3000);
+      if (enviados && typeof showToast === 'function') showToast(`☁️ ${enviados === 1 ? 'Word enviado' : enviados + ' Word enviados'} para a central`, 3000);
       if (erro && !erro.offline && typeof showToast === 'function') showToast('Central: ' + erro.message, 4000);
       cartao();
     }
   }
 
-  // Observa os arquivos gerados (as funções originais continuam fazendo o mesmo de antes)
-  const pdfOriginal = window.offerShareButton, wordOriginal = window.offerShareWordButton;
-  if (typeof pdfOriginal === 'function') window.offerShareButton = function(tela, blob, filename){
-    const r = pdfOriginal.apply(this, arguments); guardar(tela, blob, filename, 'pdf'); return r;
+  // Botão ☁️: monta o Word com o mesmo código de sempre (buildWordRDO etc.), mas em
+  // vez de baixar, o saveDocx manda o arquivo para a fila da central.
+  const BUILD = { rdo: 'buildWordRDO', visita: 'buildWordVisita', entrega: 'buildWordEntrega', os: 'buildWordOS' };
+  let paraCentral = false;
+  const saveOriginal = window.saveDocx;
+  if (typeof saveOriginal === 'function') window.saveDocx = async function(doc, filename, tela){
+    if (!paraCentral) return saveOriginal.apply(this, arguments);
+    const blob = await docx.Packer.toBlob(doc);
+    await guardar(tela, blob, filename, 'docx');
   };
-  if (typeof wordOriginal === 'function') window.offerShareWordButton = function(tela, blob, filename){
-    const r = wordOriginal.apply(this, arguments); guardar(tela, blob, filename, 'docx'); return r;
-  };
+  function enviarParaCentral(tela){
+    if (!C.sessao()){ entrar(() => enviarParaCentral(tela)); return; }
+    runWithLoadingWord('btn-word-' + tela, async () => {
+      paraCentral = true;
+      try { await window[BUILD[tela]](); } finally { paraCentral = false; }
+      if (!navigator.onLine) showToast('☁️ Sem internet: o Word ficou guardado e sobe sozinho quando o sinal voltar.', 4500);
+    });
+  }
+  Object.keys(BUILD).forEach(tela => {
+    const b = document.getElementById('btn-word-' + tela);
+    if (!b || typeof window[BUILD[tela]] !== 'function') return;
+    b.textContent = '☁️'; b.title = 'Enviar o Word para a central';
+    b.setAttribute('aria-label', 'Enviar o Word para a central');
+    b.onclick = () => enviarParaCentral(tela);
+  });
+
+  // Login (só na primeira vez; vale 60 dias)
+  function entrar(depois){
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    box.innerHTML = `<div class="obras-box" style="background:#fff;width:100%;max-width:360px;margin:0">
+      <div class="ob-title">☁️ Entrar na central</div>
+      <div class="select-sub">Só na primeira vez (precisa de internet agora). O acesso vale 60 dias.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        <input data-m="u" placeholder="Usuário" autocomplete="username" autocapitalize="none" style="padding:12px;font-size:16px;border:1.5px solid var(--line);border-radius:10px">
+        <input data-m="s" type="password" placeholder="Senha" autocomplete="current-password" style="padding:12px;font-size:16px;border:1.5px solid var(--line);border-radius:10px">
+        <div class="draft-actions"><button type="button" class="obra-chip" data-m="ok">Entrar</button><button type="button" class="obra-chip" data-m="cancel">Cancelar</button></div>
+      </div></div>`;
+    document.body.appendChild(box);
+    box.querySelector('[data-m=u]').focus();
+    box.addEventListener('click', async e => {
+      const b = e.target.closest('[data-m]');
+      if (!b || b.tagName !== 'BUTTON') return;
+      if (b.dataset.m === 'cancel'){ box.remove(); return; }
+      b.disabled = true;
+      try{
+        await C.login(box.querySelector('[data-m=u]').value.trim(), box.querySelector('[data-m=s]').value);
+        box.remove(); showToast('Conectado à central.', 2500); cartao();
+        if (depois) depois(); else enviarFila();
+      }catch(err){ showToast(err.message, 4000); b.disabled = false; }
+    });
+  }
 
   // Cartão na tela inicial: login e situação dos envios
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -98,13 +145,13 @@
     let n = 0;
     try { n = (await fila()).length; } catch(e){}
     const s = C.sessao();
-    const pend = n ? `<div class="select-sub" style="margin-top:6px"><b>${n}</b> arquivo(s) esperando envio${navigator.onLine ? '' : ' (sem internet, sobe sozinho quando voltar o sinal)'}.</div>` : '';
+    const pend = n ? `<div class="select-sub" style="margin-top:6px"><b>${n}</b> Word esperando envio${navigator.onLine ? '' : ' (sem internet, sobe sozinho quando voltar o sinal)'}.</div>` : '';
     el.innerHTML = s
       ? `<div class="ob-title">☁️ Central de relatórios</div>
-         <div class="select-sub">Conectado como <b>${esc(s.nome || s.usuario)}</b>. Os PDF e Word gerados aqui sobem sozinhos para a central.</div>${pend}
+         <div class="select-sub">Conectado como <b>${esc(s.nome || s.usuario)}</b>. Use o botão ☁️ do relatório para mandar o Word para a central.</div>${pend}
          <div class="draft-actions">${n ? '<button type="button" class="obra-chip" data-cl="enviar">Enviar agora</button>' : ''}<button type="button" class="obra-chip" data-cl="sair">Sair</button></div>`
       : `<div class="ob-title">☁️ Central de relatórios</div>
-         <div class="select-sub">Entre para que os PDF e Word gerados subam para a central (o SAT acessa por lá).</div>${pend}
+         <div class="select-sub">Para mandar o Word dos relatórios para o SAT (botão ☁️ no rodapé de cada relatório), entre uma vez.</div>${pend}
          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
            <input id="cl-usuario" placeholder="Usuário" autocomplete="username" autocapitalize="none" style="padding:12px;font-size:16px;border:1.5px solid var(--line);border-radius:10px">
            <input id="cl-senha" type="password" placeholder="Senha" autocomplete="current-password" style="padding:12px;font-size:16px;border:1.5px solid var(--line);border-radius:10px">

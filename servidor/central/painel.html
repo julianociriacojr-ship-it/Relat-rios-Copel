@@ -18,6 +18,7 @@
   button{ cursor:pointer; border-radius:8px; border:1px solid var(--line); background:#fff; padding:8px 12px; font-weight:600; }
   button.primary{ background:var(--teal); border-color:var(--teal); color:#fff; }
   button.link{ border:none; background:none; color:var(--teal2); padding:4px 6px; text-decoration:underline; font-weight:600; }
+  button.baixar-word{ background:var(--teal2); color:#fff; border:none; border-radius:8px; padding:9px 14px; font-weight:700; cursor:pointer; }
   button:disabled{ opacity:.5; cursor:default; }
   #login{ max-width:360px; margin:60px auto; }
   #login label{ display:block; font-weight:700; margin:12px 0 6px; }
@@ -59,12 +60,13 @@
       <button id="atualizar">Atualizar</button>
       <span class="count" id="count"></span>
     </div>
-    <table><thead><tr><th>Relatório</th><th>Técnico</th><th>Status</th><th>Arquivos do técnico</th><th>Versão revisada (SAT)</th></tr></thead><tbody id="linhas"></tbody></table>
+    <table><thead><tr><th>Relatório</th><th>Técnico</th><th>Status</th><th>Baixar</th></tr></thead><tbody id="linhas"></tbody></table>
   </div>
 </main>
 <div id="toast"></div>
 <script>
-const STATUS = { recebido: 'Recebido', em_revisao: 'Em revisão', revisado: 'Revisado', enviado_cliente: 'Enviado ao cliente' };
+// O SAT baixa o Word, ajusta e manda ao cliente por conta própria (não volta revisado para cá)
+const STATUS = { recebido: 'Recebido', em_revisao: 'Em ajuste (SAT)', enviado_cliente: 'Enviado ao cliente' };
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dt = iso => iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
@@ -132,14 +134,12 @@ function render(){
       <td>${sat ? `<select data-status="${esc(i.id)}">${Object.entries(STATUS).map(([v, t]) => `<option value="${v}" ${i.status === v ? 'selected' : ''}>${t}</option>`).join('')}</select>`
                 : `<span class="pill s-${esc(i.status)}">${esc(STATUS[i.status] || i.status)}</span>`}
         <div class="hist">${(i.historico || []).slice(-3).map(h => `${esc(dt(h.em))} · ${esc(h.acao.replace(/^status: (\w+)$/, (x, v) => 'status: ' + (STATUS[v] || v)))}`).join('<br>')}</div></td>
-      <td>${bt('docx', '⬇ .docx')} ${bt('pdf', '⬇ PDF')} ${bt('backup', '⬇ backup .zip')}</td>
-      <td>${bt('revisado', '⬇ revisado .docx')} ${bt('revisado_pdf', '⬇ revisado PDF')}
-        ${sat ? `<div style="margin-top:6px"><label class="sub">Enviar revisado (.docx ou .pdf):<br><input type="file" accept=".docx,.pdf" data-revisar="${esc(i.id)}"></label></div>` : ''}</td>
+      <td>${a.docx ? `<button class="baixar-word" data-baixar="${esc(i.id)}" data-tipo="docx">⬇ Baixar Word</button>` : '<span class="sub">Word ainda não chegou</span>'}
+        <div class="sub" style="margin-top:6px">${bt('pdf', 'PDF')} ${bt('backup', 'backup .zip')}</div></td>
     </tr>`;
-  }).join('') : '<tr><td colspan="5" class="empty">Nenhuma inspeção recebida ainda.</td></tr>';
+  }).join('') : '<tr><td colspan="4" class="empty">Nenhuma inspeção recebida ainda.</td></tr>';
   document.querySelectorAll('[data-baixar]').forEach(b => b.onclick = () => baixar(b.dataset.baixar, b.dataset.tipo));
   document.querySelectorAll('[data-status]').forEach(s => s.onchange = () => mudarStatus(s.dataset.status, s.value));
-  document.querySelectorAll('[data-revisar]').forEach(f => f.onchange = () => enviarRevisado(f.dataset.revisar, f.files[0]));
 }
 async function baixar(id, tipo){
   try{
@@ -152,12 +152,6 @@ async function baixar(id, tipo){
 }
 async function mudarStatus(id, status){
   try { await api(`/api/inspecoes/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) }); toast('Status atualizado'); carregar(); }
-  catch(e){ toast(e.message, true); }
-}
-async function enviarRevisado(id, file){
-  if (!file) return;
-  const tipo = /\.pdf$/i.test(file.name) ? 'revisado_pdf' : 'revisado';
-  try { await api(`/api/inspecoes/${id}/arquivos/${tipo}`, { method: 'PUT', body: file }); toast('Versão revisada enviada'); carregar(); }
   catch(e){ toast(e.message, true); }
 }
 mostrar();

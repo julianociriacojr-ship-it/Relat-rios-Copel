@@ -291,7 +291,7 @@
           <div class="main">
             <div class="code">${esc(i.houseNumber ? codeOf(i) : 'Sem código')}</div>
             <div class="sub">${esc(c ? c.nome : 'Comunidade não definida')} · ${esc(fmtDate(i.inspectionDate))}</div>
-            <div class="sub">${i.gps ? '📍 com coordenadas' : '📍 sem coordenadas'}${needsBackup(i) ? ' · 💾 sem backup' : ' · 💾 backup ok'}${CENTRAL.ativo() && i.status === 'exported' ? (needsCentral(i) ? ' · ☁️ aguardando envio' : ' · ☁️ na central') : ''}</div>
+            <div class="sub">${i.gps ? '📍 com coordenadas' : '📍 sem coordenadas'}${needsBackup(i) ? ' · 💾 sem backup' : ' · 💾 backup ok'}${CENTRAL.ativo() && pediuCentral(i) ? (needsCentral(i) ? ' · ☁️ aguardando envio' : ' · ☁️ na central') : ''}</div>
           </div>
           <span class="status ${i.status}">${STATUS_LABEL[i.status] || i.status}</span>
         </button>`;
@@ -390,22 +390,27 @@
   }
 
   /* ---------------- central de relatórios ---------------- */
-  // Vai para a central a inspeção exportada (finalizada) cuja versão atual
-  // ainda não subiu. Rascunhos não sobem sozinhos.
-  const needsCentral = i => i.status === 'exported' && i.centralVersion !== i.updatedAt;
+  // Vai para a central só a inspeção que o técnico mandou enviar (botão
+  // "Enviar para a central"). Sobe o Word (o que o SAT ajusta) e o backup
+  // .zip (cópia de segurança). O PDF fica no celular, para o WhatsApp.
+  // Se mudar algo depois de enviar, a versão nova sobe sozinha.
+  const pediuCentral = i => !!(i.centralPedido || i.centralVersion);
+  const needsCentral = i => pediuCentral(i) && i.centralVersion !== i.updatedAt;
   let syncing = false;
   async function sendToCentral(rec){
     const fresh = await DB.getInspection(rec.id);
     if (!fresh) return;
-    const { docx, pdf } = await buildDocs(fresh);
+    const { docx } = await buildDocs(fresh, { pdf: false });
     const backup = await BACKUP.build([fresh]);
     const c = OBS.getCommunity(fresh.communityId);
-    await CENTRAL.enviar(fresh, c ? c.nome : '', { docx, pdf, backup });
+    await CENTRAL.enviar(fresh, c ? c.nome : '', { docx, backup });
     const cur = await DB.getInspection(fresh.id);          // grava sem mexer no updatedAt
     if (cur && cur.updatedAt === fresh.updatedAt){
-      cur.centralAt = new Date().toISOString(); cur.centralVersion = fresh.updatedAt;
+      // o backup .zip foi junto: a central guarda a cópia de segurança
+      cur.centralAt = cur.backupAt = new Date().toISOString(); cur.centralVersion = fresh.updatedAt;
       await DB.putInspection(cur);
-      if (S.insp && S.insp.id === cur.id){ S.insp.centralAt = cur.centralAt; S.insp.centralVersion = cur.centralVersion; }
+      if (S.insp && S.insp.id === cur.id){ S.insp.centralAt = cur.centralAt; S.insp.backupAt = cur.backupAt; S.insp.centralVersion = cur.centralVersion; }
+      const k = S.list.findIndex(o => o.id === cur.id); if (k >= 0) S.list[k] = cur;
     }
   }
   async function syncCentral({ silencioso, apenas } = {}){
@@ -455,7 +460,7 @@
     if (!CENTRAL.ativo()) return '';
     const sess = CENTRAL.sessao();
     const pend = items.filter(needsCentral).length;
-    if (!sess) return `<div class="warn-box">☁️ <b>Central de relatórios:</b> entre uma vez (com internet) para as inspeções finalizadas subirem sozinhas para o SAT.
+    if (!sess) return `<div class="warn-box">☁️ <b>Central de relatórios:</b> entre uma vez (com internet) para mandar o Word das inspeções para o SAT.
       <button type="button" class="btn-line" id="btn-central-login">Entrar na central</button></div>`;
     return `<div class="${pend ? 'warn-box' : 'all-ok'}" style="margin:0">☁️ Central: <b>${esc(sess.nome)}</b> · ${pend ? `${pend} aguardando envio` : 'tudo enviado'}
       <div class="photo-row" style="margin-top:8px">${pend ? '<button type="button" class="btn-teal" id="btn-central-sync">Enviar agora</button>' : ''}<button type="button" class="btn-ghost" id="btn-central-sair" style="flex:1">Sair da central</button></div></div>`;
@@ -739,11 +744,11 @@
         <div class="export-result" id="export-result">${S.lastExport ? exportResultHTML() : ''}</div>
       </section>
       ${CENTRAL.ativo() ? `<section class="card"><h2>☁️ Central de relatórios</h2>
-        ${i.status !== 'exported' ? '<p class="hint" style="margin-top:0">Depois de gerar os arquivos, a inspeção sobe sozinha para a central quando houver internet.</p>'
-          : needsCentral(i) ? '<div class="warn-box" style="margin-top:0">Aguardando envio (sobe sozinha quando houver internet).</div>'
-          : `<div class="all-ok">✓ Na central desde ${esc(new Date(i.centralAt).toLocaleString('pt-BR'))}</div>`}
-        ${i.status === 'exported' ? `<button type="button" class="btn-line" id="btn-central-now">${needsCentral(i) ? 'Enviar agora' : 'Enviar de novo'}</button>` : ''}
-        ${CENTRAL.sessao() ? '' : '<button type="button" class="btn-line" id="btn-central-login">Entrar na central</button>'}
+        ${!pediuCentral(i) ? '<p class="hint" style="margin-top:0">Opcional: manda o Word para o SAT ajustar e enviar ao cliente, junto com a cópia de segurança (fotos e coordenadas). Sem internet, fica guardado e sobe sozinho quando o sinal voltar.</p>'
+          : needsCentral(i) ? '<div class="warn-box" style="margin-top:0">Aguardando envio (sobe sozinho quando houver internet).</div>'
+          : `<div class="all-ok">✓ Word na central desde ${esc(new Date(i.centralAt).toLocaleString('pt-BR'))}</div>`}
+        <button type="button" class="${pediuCentral(i) ? 'btn-line' : 'btn-primary'}" id="btn-central-now" style="width:100%">${!pediuCentral(i) ? '☁️ Enviar para a central' : needsCentral(i) ? 'Enviar agora' : 'Enviar de novo'}</button>
+        ${CENTRAL.sessao() ? '' : '<p class="hint">Na primeira vez pede o usuário e a senha da central.</p>'}
       </section>` : ''}
       <button type="button" class="btn-line danger" id="btn-delete">Excluir esta inspeção do aparelho</button>`;
     }
@@ -829,7 +834,7 @@
     });
 
     const btnDocx = document.getElementById('btn-docx'); if (btnDocx) btnDocx.onclick = exportFiles;
-    const cNow = document.getElementById('btn-central-now'); if (cNow) cNow.onclick = () => syncCentral({ apenas: S.insp.id });
+    const cNow = document.getElementById('btn-central-now'); if (cNow) cNow.onclick = pedirCentral;
     bindCentralCard();
     bindExportButtons();
     const del = document.getElementById('btn-delete'); if (del) del.onclick = async () => {
@@ -953,7 +958,7 @@
 
   // Gera o .docx e o PDF juntos e já baixa os dois.
   // Gera o .docx e o PDF de uma inspeção (usado no exportar e no envio à central).
-  async function buildDocs(i){
+  async function buildDocs(i, { docx: comDocx = true, pdf: comPdf = true } = {}){
     const images = {
       checklist: await loadImg(i.photos.checklist),
       frente: await loadImg(i.photos.frente),
@@ -968,11 +973,17 @@
     }
     const cc = CFG.contactCard;
     const card = cc ? await loadLogo(cc.file, 'png', cc.width, cc.height) : null;
-    const docx = new Blob([await REP.buildReport({ inspection: i, images, logo: await loadLogo('logo-solarminas.png', 'png'), card, outputType: 'blob' })], { type: WORD_MIME });
-    const pdf = new Blob([PDF.buildPdf({ inspection: i, images, logo: await loadLogo('logo-solarminas.jpg', 'jpg'), card })], { type: PDF_MIME });
+    const docx = comDocx ? new Blob([await REP.buildReport({ inspection: i, images, logo: await loadLogo('logo-solarminas.png', 'png'), card, outputType: 'blob' })], { type: WORD_MIME }) : null;
+    const pdf = comPdf ? new Blob([PDF.buildPdf({ inspection: i, images, logo: await loadLogo('logo-solarminas.jpg', 'jpg'), card })], { type: PDF_MIME }) : null;
     return { docx, pdf };
   }
 
+  // Grava status e marcas de exportação sem passar pelo touch(), que recalcula o status
+  async function guardarSemTocar(i){
+    const copia = JSON.parse(JSON.stringify(i));
+    await DB.putInspection(copia);
+    const k = S.list.findIndex(o => o.id === i.id); if (k >= 0) S.list[k] = copia;
+  }
   async function exportFiles(){
     const btn = document.getElementById('btn-docx');
     btn.disabled = true;
@@ -1000,7 +1011,6 @@
       // Baixa os três arquivos direto (o navegador pode pedir para permitir vários downloads).
       S.lastExport.files.forEach((f, n) => setTimeout(() => downloadViaLink(f), n * 600));
       toast('✓ .docx, PDF e backup gerados. Baixando para a pasta Downloads…', false, 4000);
-      setTimeout(() => syncCentral({ silencioso: true }), 3000);   // sobe para a central se houver sinal
     }catch(err){
       done();
       console.error(err);
@@ -1008,6 +1018,21 @@
     }finally{
       const b = document.getElementById('btn-docx'); if (b) b.disabled = false;
     }
+  }
+  // Marca a inspeção para a central e tenta enviar já (sem sinal, sobe depois sozinha)
+  async function pedirCentral(){
+    const i = S.insp;
+    await flushSave();
+    if (!i.centralPedido){
+      i.centralPedido = true;
+      if (i.status !== 'exported'){ i.status = 'exported'; i.exportedAt = new Date().toISOString(); }
+      await guardarSemTocar(i);
+    }
+    if (!CENTRAL.sessao()){ loginCentral(); return; }
+    if (!navigator.onLine){ toast('Sem internet agora. O Word fica guardado e sobe sozinho quando o sinal voltar.', false, 4500); renderStep(); return; }
+    const done = overlay('Enviando o Word para a central…');
+    try { await syncCentral({ apenas: i.id }); } finally { done(); }
+    renderStep();
   }
   const asFile = f => new File([f.blob], f.name, { type: f.type });
   // Cada navegador aceita tipos diferentes no compartilhamento: o Chrome do

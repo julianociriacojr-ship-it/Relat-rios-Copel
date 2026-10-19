@@ -73,6 +73,20 @@ test('relatórios antigos (RDO, Visita, Entrega, OS) com tipo e nome do arquivo'
   assert.strictEqual((await r.json()).tipo, 'inspecao_sas');
 });
 
+test('envios simultâneos na mesma inspeção não se apagam', async () => {
+  const joao = await login('joao', 'senha-joao'), maria = await login('maria', 'senha-maria');
+  const id = 'insp-simultaneo-01';
+  await req(`/api/inspecoes/${id}/meta`, { method: 'PUT', body: JSON.stringify({ houseCode: 'POE09', updatedAt: '1' }) }, joao);
+  await Promise.all([
+    req(`/api/inspecoes/${id}/arquivos/docx`, { method: 'PUT', body: Buffer.alloc(300000, 1) }, joao),
+    req(`/api/inspecoes/${id}/arquivos/backup`, { method: 'PUT', body: Buffer.alloc(300000, 2) }, joao),
+    req(`/api/inspecoes/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'em_revisao' }) }, maria)
+  ]);
+  const item = (await (await req('/api/inspecoes', {}, maria)).json()).find(i => i.id === id);
+  assert.deepStrictEqual(Object.keys(item.arquivos).sort(), ['backup', 'docx']);
+  assert.strictEqual(item.status, 'em_revisao');
+});
+
 test('CORS só para o app autorizado', async () => {
   let r = await req('/api/saude', { method: 'OPTIONS', headers: { Origin: 'https://julianociriacojr-ship-it.github.io' } });
   assert.strictEqual(r.headers.get('access-control-allow-origin'), 'https://julianociriacojr-ship-it.github.io');

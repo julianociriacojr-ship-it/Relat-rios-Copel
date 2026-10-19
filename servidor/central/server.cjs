@@ -95,6 +95,18 @@ async function gravarMeta(id, meta){
   await fsp.rename(f + '.tmp', f);                    // escrita atômica
 }
 const podeVer = (u, meta) => u.papel !== 'tecnico' || meta.enviadoPor === u.usuario;
+// Uma alteração por vez em cada inspeção: ler meta.json, mudar e gravar sem
+// que outro pedido simultâneo (ex.: envio do arquivo e mudança de status)
+// grave por cima com uma cópia antiga.
+const travas = new Map();
+function comTrava(id, fn){
+  const antes = travas.get(id) || Promise.resolve();
+  const agora = antes.catch(() => {}).then(fn);
+  const fim = agora.catch(() => {});
+  travas.set(id, fim);
+  fim.then(() => { if (travas.get(id) === fim) travas.delete(id); });
+  return agora;
+}
 function registrar(meta, u, acao){ (meta.historico = meta.historico || []).push({ em: new Date().toISOString(), por: u.usuario, acao }); }
 
 /* ---------------- rotas ---------------- */
@@ -129,6 +141,7 @@ async function rotas(req, res, u){
   if ((m = p.match(/^\/api\/inspecoes\/([^/]+)\/meta$/)) && req.method === 'PUT'){
     const id = m[1]; if (!idValido(id)) return json(res, 400, { erro: 'id inválido' });
     const novo = await lerJson(req);
+    return comTrava(id, async () => {
     const atual = await lerMeta(id);
     if (atual && !podeVer(u, atual)) return json(res, 403, { erro: 'Inspeção de outro técnico.' });
     const meta = {
@@ -145,6 +158,7 @@ async function rotas(req, res, u){
     if (!atual) registrar(meta, u, 'recebido');
     await gravarMeta(id, meta);
     return json(res, 200, meta);
+    });
   }
 
   // Envio de arquivo (corpo binário)
@@ -160,12 +174,17 @@ async function rotas(req, res, u){
       if (tipo.startsWith('revisado') && u.papel === 'tecnico') return json(res, 403, { erro: 'Só o SAT envia a versão revisada.' });
       const corpo = await lerCorpo(req, LIMITE_ARQUIVO);
       if (!corpo.length) return json(res, 400, { erro: 'Arquivo vazio' });
-      await fsp.writeFile(arq + '.tmp', corpo); await fsp.rename(arq + '.tmp', arq);
-      meta.arquivos = meta.arquivos || {};
-      meta.arquivos[tipo] = { tamanho: corpo.length, em: new Date().toISOString(), por: u.usuario };
-      if (tipo.startsWith('revisado')){ meta.status = 'revisado'; registrar(meta, u, 'versão revisada enviada (' + ARQUIVOS[tipo].ext + ')'); }
-      await gravarMeta(id, meta);
-      return json(res, 200, meta.arquivos[tipo]);
+      return comTrava(id, async () => {
+        const atual = await lerMeta(id);                     // relê: pode ter mudado durante o upload
+        if (!atual) return json(res, 404, { erro: 'Inspeção não encontrada' });
+        const tmp = arq + '.' + process.pid + '.' + Date.now() + '.tmp';
+        await fsp.writeFile(tmp, corpo); await fsp.rename(tmp, arq);
+        atual.arquivos = atual.arquivos || {};
+        atual.arquivos[tipo] = { tamanho: corpo.length, em: new Date().toISOString(), por: u.usuario };
+        if (tipo.startsWith('revisado')){ atual.status = 'revisado'; registrar(atual, u, 'versão revisada enviada (' + ARQUIVOS[tipo].ext + ')'); }
+        await gravarMeta(id, atual);
+        return json(res, 200, atual.arquivos[tipo]);
+      });
     }
     if (req.method === 'GET'){
       if (!fs.existsSync(arq)) return json(res, 404, { erro: 'Arquivo ainda não enviado' });
@@ -180,13 +199,16 @@ async function rotas(req, res, u){
   // Status (SAT / admin)
   if ((m = p.match(/^\/api\/inspecoes\/([^/]+)\/status$/)) && req.method === 'POST'){
     if (u.papel === 'tecnico') return json(res, 403, { erro: 'Só o SAT muda o status.' });
-    const meta = await lerMeta(m[1]);
-    if (!meta) return json(res, 404, { erro: 'Inspeção não encontrada' });
+    if (!idValido(m[1])) return json(res, 400, { erro: 'id inválido' });
     const { status } = await lerJson(req);
     if (!STATUS.includes(status)) return json(res, 400, { erro: 'Status inválido' });
-    meta.status = status; registrar(meta, u, 'status: ' + status);
-    await gravarMeta(m[1], meta);
-    return json(res, 200, meta);
+    return comTrava(m[1], async () => {
+      const meta = await lerMeta(m[1]);
+      if (!meta) return json(res, 404, { erro: 'Inspeção não encontrada' });
+      meta.status = status; registrar(meta, u, 'status: ' + status);
+      await gravarMeta(m[1], meta);
+      return json(res, 200, meta);
+    });
   }
 
   return json(res, 404, { erro: 'Não encontrado' });
