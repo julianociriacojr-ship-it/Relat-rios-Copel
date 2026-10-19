@@ -32,7 +32,8 @@ PWA estático publicado no **GitHub Pages** pelo workflow `.github/workflows/pag
 
 - **GPS da estaca** (passo 3): captura ao vivo com a precisão em metros (funciona sem internet), leitura do GPS gravado na foto da galeria ou digitação. Grava latitude e longitude com sinal (WGS 84). Avisa quando a coordenada sai do litoral do Paraná ou parece trocada.
 - **Backup (.zip)**: `inspecao-sas/backup.js`. Sai junto com o .docx e o PDF de cada inspeção e também pela lista ("Backup da comunidade" ou "de tudo"). Contém dados, coordenadas, círculo e fotos. "Restaurar backup" devolve tudo sem apagar nada: entra o que é novo e só substitui o que for mais recente. Serve também para juntar inspeções de colegas num aparelho. A lista avisa quais inspeções mudaram desde o último backup.
-- **Memorial descritivo por comunidade**: `inspecao-sas/report-memorial.js` com textos em `inspecao-sas/memorial-config.js` (transcritos do modelo rev00) e imagens em `inspecao-sas/memorial/`. A Tabela 1 lista todas as moradias da comunidade com as coordenadas das inspeções no aparelho; as que faltam saem como [PENDENTE]. Comunidades sem textos de localização e acesso saem com [DESCREVER: ...]. Na lista, escolha a comunidade no filtro e toque em "Memorial descritivo".
+- **Memorial descritivo por comunidade**: `inspecao-sas/report-memorial.js` com textos em `inspecao-sas/memorial-config.js` (transcritos do modelo rev00) e imagens em `inspecao-sas/memorial/`. A Tabela 1 lista todas as moradias da comunidade com as coordenadas das inspeções no aparelho; as que faltam saem como [PENDENTE]. Os textos de transporte e acesso são os mesmos para todas as comunidades (`padrao` em `memorial-config.js`); muda só o nome. Na lista, escolha a comunidade no filtro e toque em "Memorial descritivo".
+- **Imagem aérea**: na tela do memorial, "Pontos para o Google Earth (.kml)" exporta as estacas. Abra no Google Earth, salve a imagem com as casas marcadas e use "Trocar mapa".
 
 ## Desenvolvimento
 

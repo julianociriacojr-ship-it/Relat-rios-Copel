@@ -51,11 +51,15 @@ test('tabela lista todas as moradias e marca pendentes', () => {
   assert.deepStrictEqual(rows.filter(r => !r.lat).map(r => r.code), ['86204POE09', '86204POE11', '86204POE22']);
 });
 
-test('comunidade sem textos próprios sai com marcadores', async () => {
+test('outras comunidades usam os textos padrão com o próprio nome', async () => {
   const buf = await buildMemorial({ communityId: 'sibui', coords: {}, engineer: '', images: {}, outputType: 'nodebuffer' });
   const xml = await (await JSZip.loadAsync(buf)).file('word/document.xml').async('string');
   const visible = (xml.match(/<w:t[ >][^<]*/g) || []).join(' ');
-  assert.match(visible, /\[DESCREVER:/);
+  assert.doesNotMatch(visible, /DESCREVER/);
+  // fora da tabela de distribuição (que lista as 12), nada da Ponta Oeste
+  assert.doesNotMatch(visible.split('2. OBJETIVO')[2] || visible.split('2. OBJETIVO')[1], /Ponta Oeste|Ilha do Mel/);
   assert.match(visible, /Comunidade Sibuí, localizada no município de Guaraqueçaba - PR/);
+  assert.match(visible, /Devido às características geográficas da Comunidade Sibuí, o transporte/);
+  assert.match(visible, /acessíveis predominantemente por embarcações e trilhas locais/);
   assert.match(visible, /\[INSERIR FOTO: mapa de localização/);
 });

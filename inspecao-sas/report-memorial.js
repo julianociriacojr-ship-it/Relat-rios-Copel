@@ -37,9 +37,9 @@
       SITUADA: ilha ? `situada na ${ilha}, pertencente ao município de ${c.municipio}, Estado do Paraná` : `situada no município de ${c.municipio}, Estado do Paraná`,
       LOCAL: [m.nome, ilha, 'Município de ' + c.municipio, 'Paraná'].filter(Boolean).join(' - ') + '.',
       QTD: String(c.moradias),
-      TRANSPORTE: m.transporte || '[DESCREVER: características geográficas da comunidade e meio de transporte dos materiais (terrestre, hidroviário), justificando a adoção da estrutura metálica desmontável em alumínio.]',
-      ACESSO: m.acesso || '[DESCREVER: características da região e forma de acesso às residências da comunidade.]',
-      ACESSO_CONCLUSAO: m.acessoConclusao || '[DESCREVER: condição de acesso à comunidade]'
+      TRANSPORTE: (m.transporte || MEM.padrao.transporte).replace(/\{REGIAO\}/g, ilha || m.nome),
+      ACESSO: m.acesso || MEM.padrao.acesso,
+      ACESSO_CONCLUSAO: m.acessoConclusao || MEM.padrao.acessoConclusao
     };
   }
   function fill(text, v){ return t(String(text).replace(/\{([A-Z_]+)\}/g, (all, k) => (v[k] != null ? v[k] : all))); }

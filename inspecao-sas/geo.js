@@ -90,7 +90,25 @@
     return err.message || 'Falha no GPS.';
   }
 
-  const api = { fmt, parse, regionWarning, readExifGps, watch, errorMessage, REGIAO };
+  /* ---------------- KML (Google Earth) ---------------- */
+  // Pontos das estacas para abrir no Google Earth e salvar a imagem aérea
+  // da comunidade com as residências marcadas.
+  function toKml(title, points){
+    const x = s => String(s).replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+    const marks = points.filter(p => typeof p.lat === 'number' && typeof p.lon === 'number').map(p => `
+    <Placemark><name>${x(p.name)}</name><styleUrl>#estaca</styleUrl>
+      <Point><coordinates>${p.lon.toFixed(6)},${p.lat.toFixed(6)},0</coordinates></Point></Placemark>`).join('');
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+  <name>${x(title)}</name>
+  <Style id="estaca"><IconStyle><color>ff0000ff</color><scale>1.1</scale>
+    <Icon><href>http://maps.google.com/mapfiles/kml/paddle/red-circle.png</href></Icon></IconStyle>
+    <LabelStyle><scale>1.0</scale></LabelStyle></Style>${marks}
+</Document></kml>
+`;
+  }
+
+  const api = { fmt, parse, regionWarning, readExifGps, watch, errorMessage, toKml, REGIAO };
   root.SAS_GEO = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

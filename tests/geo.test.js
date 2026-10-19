@@ -24,3 +24,9 @@ test('confere região e formato', () => {
   assert.strictEqual(GEO.parse('-25,506488'), -25.506488);
   assert.strictEqual(GEO.parse('abc'), null);
 });
+
+test('kml com os pontos', () => {
+  const k = GEO.toKml('Comunidade Ponta Oeste', [{ name: '86204POE01', lat: -25.506488, lon: -48.380576 }, { name: '86204POE02', lat: null, lon: null }]);
+  assert.match(k, /<coordinates>-48\.380576,-25\.506488,0<\/coordinates>/);
+  assert.strictEqual((k.match(/<Placemark>/g) || []).length, 1);
+});

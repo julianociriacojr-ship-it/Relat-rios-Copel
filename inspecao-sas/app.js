@@ -416,17 +416,17 @@
     const custom = await DB.getPhoto('mapa:' + cid);
     const mapUrl = custom ? URL.createObjectURL(custom.blob) : (m.mapa ? 'inspecao-sas/' + m.mapa : null);
     let eng = CFG.defaultTechnician; try { eng = localStorage.getItem(ENGINEER_KEY) || eng; } catch(e){}
-    const textosPendentes = !m.transporte || !m.acesso || !m.acessoConclusao;
     view.innerHTML = `
       <section class="card"><h2>${esc(m.nome || c.nome)}</h2>
         <p style="margin:0 0 8px">${esc(c.municipio)} · ${c.moradias} moradias</p>
         <div class="${ok === rows.length ? 'all-ok' : 'warn-box'}">📍 Coordenadas: <b>${ok} de ${rows.length}</b> residências.${ok < rows.length ? '<br>As que faltam saem como [PENDENTE] na Tabela 1.' : ''}</div>
-        ${textosPendentes ? '<div class="warn-box">Os textos de localização e acesso desta comunidade ainda não foram escritos. Saem como [DESCREVER: ...] no documento para ajuste no Word (ou peça para incluir no app).</div>' : ''}
         <details ${ok < rows.length ? 'open' : ''}><summary>Tabela 1 · coordenadas</summary>
           <table class="sum-table"><tr><td><b>Residência</b></td><td><b>Latitude · Longitude</b></td></tr>
           ${rows.map(r => `<tr><td>${esc(r.code)}</td><td>${r.lat ? esc(r.lat + ' · ' + r.lon) : '<b style="color:#A3271B">pendente</b>'}</td></tr>`).join('')}</table>
         </details>
         <p class="hint">Inspeções feitas em outro celular: peça ao colega o backup (.zip) e use “Restaurar backup” na lista. As coordenadas dele entram aqui.</p>
+        <button type="button" class="btn-line" id="btn-kml" ${ok ? '' : 'disabled'}>🌍 Pontos para o Google Earth (.kml)</button>
+        <p class="hint">Abra o .kml no Google Earth (computador ou celular): as estacas aparecem marcadas sobre a imagem de satélite. Salve a imagem e use em “Trocar mapa” abaixo.</p>
       </section>
       <section class="card"><h2>Mapa de localização (Figura 1)</h2>
         ${mapUrl ? `<img src="${mapUrl}" alt="Mapa" style="width:100%;border-radius:8px;border:1px solid var(--line)">` : '<div class="slot-empty">Sem mapa. Sai como [INSERIR FOTO: mapa de localização] no documento.</div>'}
@@ -453,6 +453,12 @@
         await DB.putPhoto({ id: 'mapa:' + cid, inspectionId: 'comunidade:' + cid, slot: 'mapa', blob: r.blob, width: r.width, height: r.height, createdAt: new Date().toISOString() });
       }catch(err){ toast('Não foi possível ler a imagem.', true); }
       done(); renderMemorial(cid);
+    };
+    document.getElementById('btn-kml').onclick = () => {
+      const pts = rows.filter(r => r.lat).map(r => ({ name: r.code, lat: GEO.parse(r.lat), lon: GEO.parse(r.lon) }));
+      const kml = GEO.toKml(m.nome || c.nome, pts);
+      const name = MEMORIAL.memorialFileName(cid).replace(/^Memorial_Descritivo_/, 'Estacas_').replace(/\.docx$/, '.kml');
+      shareOrDownload({ blob: new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }), name, type: 'application/vnd.google-earth.kml+xml', label: 'KML', icon: '🌍' }, 'Pontos exportados');
     };
     const reset = document.getElementById('btn-map-reset');
     if (reset) reset.onclick = async () => { await DB.deletePhoto('mapa:' + cid); renderMemorial(cid); };

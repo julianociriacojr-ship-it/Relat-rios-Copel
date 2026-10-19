@@ -10,8 +10,10 @@
      {TRANSPORTE}  frase sobre o transporte dos materiais
      {ACESSO}      frase sobre a região e o acesso às residências
      {ACESSO_CONCLUSAO} trecho da conclusão sobre o acesso
-   Texto de comunidade ainda não descrito sai como [DESCREVER: ...] no
-   documento: nunca inventar características do local.
+   Os textos de transporte e acesso são os mesmos para todas as
+   comunidades (padrao abaixo); muda só o nome. {REGIAO} vira a ilha,
+   quando houver, ou o nome da comunidade. Para uma comunidade com
+   texto diferente, preencher transporte/acesso/acessoConclusao nela.
 ====================================================================== */
 (function(root){
   const MEMORIAL = {
@@ -22,15 +24,17 @@
     empresa: 'Solar Minas LTDA',
 
     // Dados próprios de cada comunidade (chave = id em config.js).
-    // ilha: null quando a comunidade não fica em ilha conhecida.
-    // transporte / acesso / acessoConclusao: null = ainda não descrito.
+    // Textos iguais para todas as comunidades (validados pelo Juliano).
+    padrao: {
+      transporte: 'Devido às características geográficas da {REGIAO}, o transporte dos materiais será realizado por via terrestre e hidroviária, motivo pelo qual foi adotada estrutura metálica desmontável em alumínio, reduzindo significativamente o volume transportado e facilitando a logística de montagem nas residências.',
+      acesso: 'Trata-se de região litorânea inserida em área de relevante interesse ambiental, composta por residências distribuídas ao longo da comunidade e acessíveis predominantemente por embarcações e trilhas locais.',
+      acessoConclusao: 'especialmente em razão do acesso predominantemente hidroviário'
+    },
+
+    // ilha: null quando a comunidade não fica em ilha.
+    // transporte / acesso / acessoConclusao: só se for diferente do padrão.
     comunidades: {
-      'poe': {
-        nome: 'Comunidade Ponta Oeste', ilha: 'Ilha do Mel', mapa: 'memorial/mapa-poe.jpg',
-        transporte: 'Devido às características geográficas da Ilha do Mel, o transporte dos materiais será realizado por via terrestre e hidroviária, motivo pelo qual foi adotada estrutura metálica desmontável em alumínio, reduzindo significativamente o volume transportado e facilitando a logística de montagem nas residências.',
-        acesso: 'Trata-se de região litorânea inserida em área de relevante interesse ambiental, composta por residências distribuídas ao longo da comunidade e acessíveis predominantemente por embarcações e trilhas locais.',
-        acessoConclusao: 'especialmente em razão do acesso predominantemente hidroviário'
-      },
+      'poe':        { nome: 'Comunidade Ponta Oeste', ilha: 'Ilha do Mel', mapa: 'memorial/mapa-poe.jpg' },
       'pindoty':    { nome: 'Aldeia Pindoty', ilha: 'Ilha da Cotinga' },
       'tekuaty':    { nome: 'Aldeia Tekuaty', ilha: 'Ilha da Cotinga' },
       'barra-ara':  { nome: 'Comunidade Barra do Ararapira', ilha: null },
