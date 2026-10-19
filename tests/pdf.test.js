@@ -25,9 +25,9 @@ const pages = buf => (Buffer.from(buf).toString('latin1').match(/\/Type\s*\/Page
 
 test('pdf completo', () => {
   const buf = buildPdf({ inspection: base, logo, card, images: {
-    checklist: jpg('checklist.jpg', 2200, 1556), frente: jpg('frente.jpg', 1600, 1200),
-    estaca: jpg('estaca.jpg', 1200, 1600), estacaCodigo: jpg('estaca.jpg', 1200, 1600),
-    extras: [{ ...jpg('frente.jpg', 1600, 1200), caption: 'Chuveiro' }]
+    checklist: jpg('checklist.jpg', 2200, 1238), frente: jpg('frente.jpg', 1600, 900),
+    estaca: jpg('estaca.jpg', 1600, 900), estacaCodigo: jpg('estaca.jpg', 1600, 900),
+    extras: [{ ...jpg('frente.jpg', 1600, 900), caption: 'Chuveiro' }]
   } });
   fs.writeFileSync(path.join(OUT, pdfFileName(base.houseCode)), Buffer.from(buf));
   assert.strictEqual(pdfFileName(base.houseCode), 'Relatorio_Visita_POE01.pdf');

@@ -93,7 +93,8 @@
     const figures = [];    // { n, text, page }
     function figure(img, captionText, missingDesc){
       const n = figures.length + 1;
-      const size = img ? fit(img, 150, 105) : { w: CW, h: 55 };
+      // Fotos horizontais 16:9 na largura útil (160 x 90 mm): duas por página.
+      const size = img ? fit(img, CW, 92) : { w: CW, h: 90 };
       if (room() < size.h + 10) newPage();
       y += 2;
       if (img){
@@ -147,7 +148,7 @@
       const s = fit(images.checklist, CW, BOTTOM - y - 4);
       doc.addImage(images.checklist.data, fmt(images.checklist), ML + (CW - s.w) / 2, y + 2, s.w, s.h, undefined, 'FAST');
       y += s.h + 6;
-    } else missingBox('checklist manuscrito preenchido e assinado', 100);
+    } else missingBox('checklist manuscrito preenchido e assinado', 90);
 
     /* ---------------- 5 Registro fotográfico ---------------- */
     heading('5 REGISTRO FOTOGRÁFICO', true);

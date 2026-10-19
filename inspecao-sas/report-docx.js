@@ -24,7 +24,8 @@
   const PAGE = { w: 21 * CM, h: 29.7 * CM, top: 2.5 * CM, bottom: 2 * CM, left: 3 * CM, right: 2 * CM };
   const PX_PER_CM = 96 / 2.54;
   const CONTENT_W_CM = 16;
-  const PHOTO_BOX = { w: 15 * PX_PER_CM, h: 10.5 * PX_PER_CM };
+  // Fotos horizontais 16:9 na largura útil (16 x 9 cm): duas por página.
+  const PHOTO_BOX = { w: CONTENT_W_CM * PX_PER_CM, h: 9.2 * PX_PER_CM };
   const CHECKLIST_BOX = { w: CONTENT_W_CM * PX_PER_CM, h: 19 * PX_PER_CM };
 
   function fmtDate(iso){
@@ -103,7 +104,7 @@
         out.push(new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, keepLines: true, spacing: { before: 120, after: 60 },
           children: [imgRun(img, fit(img, PHOTO_BOX))] }));
       } else {
-        out.push(missingBox(missingDesc, 6));
+        out.push(missingBox(missingDesc, 9));
       }
       out.push(new Paragraph({ style: 'Caption', alignment: AlignmentType.CENTER, keepLines: true, spacing: { before: 60, after: 280 },
         children: [new Bookmark({ id: bm, children: [new TextRun('Figura '), new SequentialIdentifier('Figura'), new TextRun(' - ' + t(captionText))] })] }));
@@ -183,7 +184,7 @@
       body.push(new Paragraph({ alignment: AlignmentType.CENTER, keepLines: true, spacing: { before: 120, after: 160 },
         children: [imgRun(images.checklist, fit(images.checklist, CHECKLIST_BOX))] }));
     } else {
-      body.push(missingBox('checklist manuscrito preenchido e assinado', 10));
+      body.push(missingBox('checklist manuscrito preenchido e assinado', 9));
     }
 
     /* ---------------- 5 Registro fotográfico ---------------- */

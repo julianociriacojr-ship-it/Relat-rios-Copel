@@ -211,7 +211,8 @@
         if (slot === 'estaca'){ S.insp.estacaCircles = []; await replaceSlot('estacaMarcada', null); }
       }
       await flushSave();
-      toast('✓ Foto salva no aparelho', false, 1400);
+      if (rec.height > rec.width) toast('⚠ Foto em pé. O padrão do relatório é horizontal (16:9): se puder, refaça com o celular deitado.', true, 5000);
+      else toast('✓ Foto salva no aparelho', false, 1400);
     } catch(err){
       console.error(err);
       toast('Não foi possível ler a foto. Tente novamente.', true, 4000);
@@ -581,6 +582,7 @@
         </div>`);
       }
       html += `<section class="card"><h2>3. Fotos</h2>
+        <div class="tip">📱 Todas as fotos com o celular <b>na horizontal</b> (16:9). No relatório, cada foto ocupa a largura da página, duas por página.</div>
         ${await slotHTML('frente', 'Figura 1 · Frente da residência', 'Foto da frente da residência.')}
         ${await slotHTML('estaca', 'Figura 2 · Local da estaca', 'Foto do local da estaca. Depois, marque com o círculo vermelho.', {
           showId: i.photos.estacaMarcada || i.photos.estaca,

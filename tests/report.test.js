@@ -36,9 +36,9 @@ async function build(insp, images){
 
 test('relatório completo', async () => {
   const { buf, xml, zip } = await build(base, {
-    checklist: jpg('checklist.jpg', 2200, 1556), frente: jpg('frente.jpg', 1600, 1200),
-    estaca: jpg('estaca.jpg', 1200, 1600), estacaCodigo: jpg('estaca.jpg', 1200, 1600),
-    extras: [{ ...jpg('frente.jpg', 1600, 1200), caption: 'Chuveiro' }]
+    checklist: jpg('checklist.jpg', 2200, 1238), frente: jpg('frente.jpg', 1600, 900),
+    estaca: jpg('estaca.jpg', 1600, 900), estacaCodigo: jpg('estaca.jpg', 1600, 900),
+    extras: [{ ...jpg('frente.jpg', 1600, 900), caption: 'Chuveiro' }]
   });
   assert.ok(buf.length < 8 * 1024 * 1024);
   assert.match(xml, /SEQ Figura/);
@@ -78,6 +78,6 @@ test('fotos faltando viram placeholder', async () => {
 test('observações longas', async () => {
   const long = Array.from({ length: 25 }, (_, i) => `Parágrafo de observação adicional número ${i + 1}, registrado em campo para teste de paginação do documento gerado.`).join('\n');
   await build({ ...base, houseCode: 'POE03', observations: { chips: base.observations.chips, freeText: long } }, {
-    checklist: jpg('checklist.jpg', 2200, 1556), frente: jpg('frente.jpg', 1600, 1200), extras: []
+    checklist: jpg('checklist.jpg', 2200, 1238), frente: jpg('frente.jpg', 1600, 900), extras: []
   });
 });

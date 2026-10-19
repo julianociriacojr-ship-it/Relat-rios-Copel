@@ -23,7 +23,7 @@ PWA estático publicado no **GitHub Pages** pelo workflow `.github/workflows/pag
 
 - **Offline**: tudo é servido do cache do SW. Abra o app uma vez com sinal e depois ele funciona em modo avião.
 - **Dados**: IndexedDB `solarminas-inspecao-sas`, com registros em `inspections` e fotos (Blob) em `photos`. Salva a cada alteração (debounce de 350 ms) e também ao sair, bloquear a tela ou trocar de app. Pede `navigator.storage.persist()`.
-- **Fotos**: redimensionadas no aparelho (lado maior 1600 px, JPEG 0,75; checklist 2200 px, JPEG 0,8). O círculo da Figura 2 é guardado como anotação relativa (`estacaCircles`) e também como imagem final (`estacaMarcada`).
+- **Fotos**: padrão horizontal 16:9 (cada foto na largura útil, duas por página; o app avisa se chegar foto em pé). Redimensionadas no aparelho (lado maior 1600 px, JPEG 0,75; checklist 2200 px, JPEG 0,8). O círculo da Figura 2 é guardado como anotação relativa (`estacaCircles`) e também como imagem final (`estacaMarcada`).
 - **.docx**: `inspecao-sas/report-docx.js`. Os números de página do Sumário, do Índice de Ilustrações e do "Página X de Y" são gravados pelo estimador do docx (`vendor/docx-layout.min.js`). Se ele não conseguir diagramar, o documento sai com os campos marcados para o Word atualizar ao abrir.
 - **PDF**: `inspecao-sas/report-pdf.js` gera o PDF com a mesma estrutura do .docx. Como a paginação é feita no próprio gerador, o sumário e o índice saem com as páginas exatas. O botão "Gerar e baixar .docx + PDF" baixa os dois arquivos na hora; os botões "Baixar" abrem a janela "Salvar como" no Chrome/Edge do computador.
 - **Configuração**: `inspecao-sas/config.js` (prefixos, `86204`, código do documento, textos fixos, contato).
