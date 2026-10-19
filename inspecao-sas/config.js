@@ -43,7 +43,7 @@
 
     // Central de relatórios na VPS (servidor/central). Vazio = recurso desligado.
     // Ex.: 'https://relatorios.solarminas.com.br'
-    central: { url: '' },
+    central: { url: 'https://central.169-58-19-125.sslip.io' },
 
     // Fotos extras (Figura 4 em diante). CONFIRMAR se continuam permitidas.
     allowExtraPhotos: true,
