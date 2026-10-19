@@ -48,5 +48,5 @@
     }
   }
 
-  root.SAS_CENTRAL = { ativo, url, sessao, login, sair, enviar };
+  root.SAS_CENTRAL = { ativo, url, sessao, login, sair, enviar, req };
 })(window);

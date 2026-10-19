@@ -35,7 +35,7 @@ jobs:
       - name: Montar pasta do site
         run: |
           mkdir -p _site
-          cp -r index.html inspecao-sas.html inspecao-sas vendor \
+          cp -r index.html inspecao-sas.html inspecao-sas vendor legado \
                 service-worker.js manifest.json icon-192.png icon-512.png _site/
           # Versão do cache = commit publicado, para os celulares baixarem a
           # versão nova sem precisar editar CACHE_NAME à mão.

@@ -21,6 +21,8 @@ const DADOS = path.resolve(process.env.DADOS || path.join(__dirname, 'dados'));
 const ORIGENS = (process.env.ORIGENS || 'https://julianociriacojr-ship-it.github.io').split(',').map(s => s.trim()).filter(Boolean);
 const LIMITE_ARQUIVO = 80 * 1024 * 1024;          // 80 MB por arquivo
 const VALIDADE_TOKEN = 1000 * 60 * 60 * 24 * 60;   // 60 dias (técnico em campo sem sinal)
+// Relatórios que chegam: a inspeção SAS e os 4 relatórios antigos do app
+const TIPOS = ['inspecao_sas', 'rdo', 'visita', 'entrega', 'os'];
 const ARQUIVOS = {                                  // tipos aceitos
   docx: { ext: 'docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
   pdf: { ext: 'pdf', mime: 'application/pdf' },
@@ -131,6 +133,8 @@ async function rotas(req, res, u){
     if (atual && !podeVer(u, atual)) return json(res, 403, { erro: 'Inspeção de outro técnico.' });
     const meta = {
       ...(atual || { id, enviadoPor: u.usuario, enviadoPorNome: u.nome, status: 'recebido', arquivos: {} }),
+      tipo: TIPOS.includes(novo.tipo) ? novo.tipo : 'inspecao_sas',
+      titulo: String(novo.titulo || '').slice(0, 200), nomeBase: String(novo.nomeBase || '').replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 120),
       houseCode: String(novo.houseCode || ''), communityId: String(novo.communityId || ''), comunidade: String(novo.comunidade || ''),
       inspectionDate: String(novo.inspectionDate || ''), technician: String(novo.technician || ''),
       gps: novo.gps && typeof novo.gps.lat === 'number' ? { lat: novo.gps.lat, lon: novo.gps.lon, accuracy: novo.gps.accuracy ?? null } : null,
@@ -166,7 +170,8 @@ async function rotas(req, res, u){
     if (req.method === 'GET'){
       if (!fs.existsSync(arq)) return json(res, 404, { erro: 'Arquivo ainda não enviado' });
       const sufixo = tipo === 'revisado' || tipo === 'revisado_pdf' ? '_revisado' : tipo === 'backup' ? '_backup' : '';
-      const nome = `Relatorio_Visita_${(meta.houseCode || id).replace(/[^A-Za-z0-9_-]/g, '')}${sufixo}.${ARQUIVOS[tipo].ext}`;
+      const base = meta.nomeBase || `Relatorio_Visita_${(meta.houseCode || id).replace(/[^A-Za-z0-9_-]/g, '')}`;
+      const nome = `${base}${sufixo}.${ARQUIVOS[tipo].ext}`;
       res.writeHead(200, { 'Content-Type': ARQUIVOS[tipo].mime, 'Content-Disposition': `attachment; filename="${nome}"`, 'Cache-Control': 'no-store' });
       return fs.createReadStream(arq).pipe(res);
     }

@@ -11,8 +11,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Solar Minas">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<!-- Rascunhos no aparelho e bibliotecas locais (funciona sem internet) -->
+<script src="vendor/storage-shim.js"></script>
+<script src="vendor/legado/jspdf-2.5.1.umd.min.js"></script>
+<script src="vendor/legado/docx-8.5.0.umd.js"></script>
 <style>
   :root{
     --teal-deep:#0B4A5C;
@@ -3654,5 +3656,9 @@ if('serviceWorker' in navigator){
 }
 </script>
 
+<!-- Envio dos PDF/Word gerados para a central de relatórios (fila no aparelho) -->
+<script src="inspecao-sas/config.js"></script>
+<script src="inspecao-sas/central.js"></script>
+<script src="legado/central-legado.js"></script>
 </body>
 </html>

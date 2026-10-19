@@ -16,7 +16,7 @@ PWA estático publicado no **GitHub Pages** pelo workflow `.github/workflows/pag
 1. **Stack**: HTML único (`index.html`, cerca de 420 KB, com logo em base64), JavaScript puro e CSS inline, sem framework nem build. As telas são `div.screen` alternadas por `showScreen()`.
 2. **Service worker e manifest**: existem. O SW faz cache-first com atualização em segundo plano e pré-carrega só `index.html`, `manifest.json` e os ícones. As bibliotecas de CDN só ficam offline depois de terem sido baixadas uma vez com internet.
 3. **Rascunhos e fotos**: usam `window.storage.get/set`, que é a API de armazenamento dos artefatos do Claude. **Ela não existe fora do claude.ai.** No Netlify todas as chamadas caem no `try/catch`, então os rascunhos dos 4 módulos provavelmente **não estão sendo salvos** no app publicado. As fotos ficam em memória como dataURL e entram no mesmo JSON do rascunho.
-4. **Word/PDF**: jsPDF 2.5.1 (cdnjs) e docx 8.5.0 (jsdelivr), ambos por **CDN**. O Word é montado com helpers `wDocx*` e entregue por download, mais um botão de Web Share.
+4. **Word/PDF**: jsPDF 2.5.1 (cdnjs) e docx 8.5.0 (jsdelivr), ambos por **CDN** (hoje locais, ver abaixo). O Word é montado com helpers `wDocx*` e entregue por download, mais um botão de Web Share.
 5. **Reaproveitado**: paleta e componentes visuais (`select-card`, `chip`, `photo-btn`, `btn-primary`, `footer-bar`, toast) e o padrão de compartilhamento (gerar primeiro, depois tocar em "Compartilhar"). O rascunho **não** foi reaproveitado por causa do item 3. Para não mexer nos 4 módulos, o módulo novo fica em página própria, com IndexedDB.
 
 ## Módulo Inspeção SAS
@@ -27,6 +27,14 @@ PWA estático publicado no **GitHub Pages** pelo workflow `.github/workflows/pag
 - **.docx**: `inspecao-sas/report-docx.js`. Os números de página do Sumário, do Índice de Ilustrações e do "Página X de Y" são gravados pelo estimador do docx (`vendor/docx-layout.min.js`). Se ele não conseguir diagramar, o documento sai com os campos marcados para o Word atualizar ao abrir.
 - **PDF**: `inspecao-sas/report-pdf.js` gera o PDF com a mesma estrutura do .docx. Como a paginação é feita no próprio gerador, o sumário e o índice saem com as páginas exatas. O botão "Gerar e baixar .docx + PDF" baixa os dois arquivos na hora; os botões "Baixar" abrem a janela "Salvar como" no Chrome/Edge do computador.
 - **Configuração**: `inspecao-sas/config.js` (prefixos, `86204`, código do documento, textos fixos, contato).
+
+## Os 4 relatórios antigos (RDO, Visita, Entrega, OS)
+
+O preenchimento e os documentos continuam iguais. Mudou só o que fica por trás:
+
+- **Rascunho**: `vendor/storage-shim.js` cria o `window.storage` que o `index.html` espera e grava no IndexedDB do aparelho (`solarminas-rascunhos`). Dentro do Claude, onde a API já existe, não troca nada.
+- **Sem internet**: jsPDF 2.5.1 e docx 8.5.0 (as mesmas versões de antes) ficam em `vendor/legado/` e entram no cache do service worker.
+- **Central**: `legado/central-legado.js` observa cada PDF e Word gerado, guarda numa fila no aparelho (`solarminas-envios`) e envia para a central quando houver sinal e login. O login fica num cartão na tela inicial e é o mesmo da Inspeção SAS. No painel, o filtro "Todos os relatórios" separa por tipo. Gerar de novo o mesmo arquivo (mesma obra e data) atualiza o registro na central.
 
 ## Coordenadas, backup e memorial
 

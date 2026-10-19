@@ -52,13 +52,14 @@
   </div>
   <div id="app" style="display:none">
     <div class="tools">
+      <select id="f-tipo"><option value="">Todos os relatórios</option></select>
       <select id="f-com"><option value="">Todas as comunidades</option></select>
       <select id="f-status"><option value="">Todos os status</option></select>
       <input id="f-busca" placeholder="Buscar código ou técnico">
       <button id="atualizar">Atualizar</button>
       <span class="count" id="count"></span>
     </div>
-    <table><thead><tr><th>Residência</th><th>Técnico</th><th>Status</th><th>Arquivos do técnico</th><th>Versão revisada (SAT)</th></tr></thead><tbody id="linhas"></tbody></table>
+    <table><thead><tr><th>Relatório</th><th>Técnico</th><th>Status</th><th>Arquivos do técnico</th><th>Versão revisada (SAT)</th></tr></thead><tbody id="linhas"></tbody></table>
   </div>
 </main>
 <div id="toast"></div>
@@ -97,29 +98,35 @@ $('entrar').onclick = async () => {
 $('s').onkeydown = e => { if (e.key === 'Enter') $('entrar').click(); };
 $('sair').onclick = sair;
 $('atualizar').onclick = () => carregar();
-['f-com', 'f-status'].forEach(id => $(id).onchange = render);
+['f-tipo', 'f-com', 'f-status'].forEach(id => $(id).onchange = render);
 $('f-busca').oninput = render;
+const TIPOS = { inspecao_sas: 'Inspeção SAS (PEE Copel)', rdo: 'RDO', visita: 'Visita Técnica', entrega: 'Entrega de Serviço', os: 'OS Residencial' };
+const tipoDe = i => i.tipo || 'inspecao_sas';
+Object.entries(TIPOS).forEach(([v, t]) => $('f-tipo').insertAdjacentHTML('beforeend', `<option value="${v}">${t}</option>`));
 Object.entries(STATUS).forEach(([v, t]) => $('f-status').insertAdjacentHTML('beforeend', `<option value="${v}">${t}</option>`));
 
 async function carregar(){
   try { lista = await (await api('/api/inspecoes')).json(); } catch(e){ toast(e.message, true); return; }
-  const coms = [...new Map(lista.map(i => [i.communityId, i.comunidade])).entries()].sort((a, b) => (a[1] || '').localeCompare(b[1] || ''));
+  const coms = [...new Map(lista.filter(i => i.communityId).map(i => [i.communityId, i.comunidade])).entries()].sort((a, b) => (a[1] || '').localeCompare(b[1] || ''));
   const sel = $('f-com').value;
   $('f-com').innerHTML = '<option value="">Todas as comunidades</option>' + coms.map(([id, n]) => `<option value="${esc(id)}" ${id === sel ? 'selected' : ''}>${esc(n || id)}</option>`).join('');
   render();
 }
 function render(){
-  const fc = $('f-com').value, fs = $('f-status').value, q = $('f-busca').value.trim().toLowerCase();
-  const itens = lista.filter(i => (!fc || i.communityId === fc) && (!fs || i.status === fs) &&
-    (!q || (i.houseCode + ' ' + i.technician + ' ' + i.enviadoPorNome).toLowerCase().includes(q)))
-    .sort((a, b) => (a.houseCode || '').localeCompare(b.houseCode || '', 'pt-BR', { numeric: true }));
+  const ft = $('f-tipo').value, fc = $('f-com').value, fs = $('f-status').value, q = $('f-busca').value.trim().toLowerCase();
+  const itens = lista.filter(i => (!ft || tipoDe(i) === ft) && (!fc || i.communityId === fc) && (!fs || i.status === fs) &&
+    (!q || [i.houseCode, i.titulo, i.technician, i.enviadoPorNome].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => tipoDe(a).localeCompare(tipoDe(b)) || (a.houseCode || a.titulo || '').localeCompare(b.houseCode || b.titulo || '', 'pt-BR', { numeric: true }));
   $('count').textContent = `${itens.length} de ${lista.length}`;
   const sat = eu && eu.papel !== 'tecnico';
   $('linhas').innerHTML = itens.length ? itens.map(i => {
     const a = i.arquivos || {};
     const bt = (tipo, rot) => a[tipo] ? `<button class="link" data-baixar="${esc(i.id)}" data-tipo="${tipo}">${rot}</button>` : '';
     return `<tr>
-      <td><div class="code">${esc(i.houseCode)}</div><div class="sub">${esc(i.comunidade)}</div><div class="sub">Inspeção ${esc(dataBR(i.inspectionDate))}</div>
+      <td><div class="sub">${esc(TIPOS[tipoDe(i)] || tipoDe(i))}</div>
+        ${tipoDe(i) === 'inspecao_sas'
+          ? `<div class="code">${esc(i.houseCode)}</div><div class="sub">${esc(i.comunidade)}</div><div class="sub">Inspeção ${esc(dataBR(i.inspectionDate))}</div>`
+          : `<div class="code">${esc(i.titulo || i.nomeBase || i.id)}</div>`}
         ${i.gps ? `<div class="sub">📍 ${i.gps.lat.toFixed(6).replace('.', ',')} · ${i.gps.lon.toFixed(6).replace('.', ',')}</div>` : ''}</td>
       <td>${esc(i.enviadoPorNome || i.enviadoPor)}<div class="sub">enviado ${esc(dt(i.recebidoEm))}</div></td>
       <td>${sat ? `<select data-status="${esc(i.id)}">${Object.entries(STATUS).map(([v, t]) => `<option value="${v}" ${i.status === v ? 'selected' : ''}>${t}</option>`).join('')}</select>`

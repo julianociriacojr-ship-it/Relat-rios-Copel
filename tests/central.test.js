@@ -57,6 +57,22 @@ test('login, envio do técnico e permissões', async () => {
   assert.strictEqual((await (await req('/api/inspecoes', {}, maria)).json())[0].status, 'recebido');
 });
 
+test('relatórios antigos (RDO, Visita, Entrega, OS) com tipo e nome do arquivo', async () => {
+  const joao = await login('joao', 'senha-joao');
+  const id = 'RDO_Obra_Centro_2026-10-19-joao';
+  let r = await req(`/api/inspecoes/${id}/meta`, { method: 'PUT', body: JSON.stringify({ tipo: 'rdo', titulo: 'RDO · Obra Centro', nomeBase: 'RDO_Obra_Centro_2026-10-19', updatedAt: '2026-10-19T12:00:00Z' }) }, joao);
+  assert.strictEqual(r.status, 200);
+  await req(`/api/inspecoes/${id}/arquivos/pdf`, { method: 'PUT', body: Buffer.from('%PDF-RDO') }, joao);
+  const item = (await (await req('/api/inspecoes', {}, joao)).json()).find(i => i.id === id);
+  assert.strictEqual(item.tipo, 'rdo');
+  assert.strictEqual(item.titulo, 'RDO · Obra Centro');
+  r = await req(`/api/inspecoes/${id}/arquivos/pdf`, {}, joao);
+  assert.match(r.headers.get('content-disposition'), /filename="RDO_Obra_Centro_2026-10-19\.pdf"/);
+  // tipo desconhecido ou ausente vira inspeção SAS
+  r = await req(`/api/inspecoes/${ID}/meta`, { method: 'PUT', body: JSON.stringify({ tipo: 'xyz', houseCode: 'POE01' }) }, joao);
+  assert.strictEqual((await r.json()).tipo, 'inspecao_sas');
+});
+
 test('CORS só para o app autorizado', async () => {
   let r = await req('/api/saude', { method: 'OPTIONS', headers: { Origin: 'https://julianociriacojr-ship-it.github.io' } });
   assert.strictEqual(r.headers.get('access-control-allow-origin'), 'https://julianociriacojr-ship-it.github.io');
