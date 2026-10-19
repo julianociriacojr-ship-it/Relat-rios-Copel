@@ -4,8 +4,9 @@
    (IndexedDB) a cada alteração. Rotas: #/ (lista), #/i/<id>/<passo>.
 ====================================================================== */
 (function(){
-  const CFG = window.SAS_CONFIG, OBS = window.SAS_OBS, DB = window.SAS_DB, IMG = window.SAS_IMG, REP = window.SAS_REPORT;
+  const CFG = window.SAS_CONFIG, OBS = window.SAS_OBS, DB = window.SAS_DB, IMG = window.SAS_IMG, REP = window.SAS_REPORT, PDF = window.SAS_PDF;
   const WORD_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const PDF_MIME = 'application/pdf';
   const STEPS = ['Identificação', 'Checklist', 'Fotos', 'Observações', 'Revisão'];
   const STEPS_SHORT = ['Dados', 'Checklist', 'Fotos', 'Obs.', 'Revisão'];
   const STATUS_LABEL = { draft: 'Rascunho', ready: 'Pronto', exported: 'Exportado' };
@@ -22,7 +23,7 @@
     saveTimer: null,
     savePromise: Promise.resolve(),
     urls: {},          // photoId -> objectURL
-    lastExport: null   // { blob, name }
+    lastExport: null   // { files: [{ blob, name, type, label, icon }] }
   };
 
   /* ---------------- utilitários ---------------- */
@@ -427,7 +428,7 @@
           : '<div class="all-ok">✓ Tudo preenchido.</div>'}
       </section>
       <section class="card"><h2>Exportar</h2>
-        <button type="button" class="btn-primary" id="btn-docx" style="width:100%">Gerar .docx</button>
+        <button type="button" class="btn-primary" id="btn-docx" style="width:100%">Gerar e baixar .docx + PDF</button>
         <div class="export-result" id="export-result">${S.lastExport ? exportResultHTML() : ''}</div>
       </section>
       <button type="button" class="btn-line danger" id="btn-delete">Excluir esta inspeção do aparelho</button>`;
@@ -507,7 +508,7 @@
       dropURL(e.photoId); await DB.deletePhoto(e.photoId); await flushSave(); renderStep();
     });
 
-    const btnDocx = document.getElementById('btn-docx'); if (btnDocx) btnDocx.onclick = exportDocx;
+    const btnDocx = document.getElementById('btn-docx'); if (btnDocx) btnDocx.onclick = exportFiles;
     bindExportButtons();
     const del = document.getElementById('btn-delete'); if (del) del.onclick = async () => {
       if (!confirm(`Excluir a inspeção ${S.insp.houseCode} e todas as fotos dela deste aparelho? Não dá para desfazer.`)) return;
@@ -544,20 +545,23 @@
     if (!p) return null;
     return { data: await blobBytes(p.blob), width: p.width, height: p.height, type: 'jpg' };
   }
-  let logoCache = null;
-  async function loadLogo(){
-    if (logoCache) return logoCache;
+  const logoCache = {};
+  async function loadLogo(file, type){
+    if (logoCache[file] !== undefined) return logoCache[file];
     try{
-      const r = await fetch('inspecao-sas/logo-solarminas.png');
+      const r = await fetch('inspecao-sas/' + file);
       if (!r.ok) throw new Error(r.status);
-      logoCache = { data: new Uint8Array(await r.arrayBuffer()), width: 772, height: 235, type: 'png' };
-    }catch(e){ console.warn('Logo indisponível', e); logoCache = null; }
-    return logoCache;
+      logoCache[file] = { data: new Uint8Array(await r.arrayBuffer()), width: 772, height: 235, type };
+    }catch(e){ console.warn('Logo indisponível', e); logoCache[file] = null; }
+    return logoCache[file];
   }
-  async function exportDocx(){
+  const sizeMB = b => (b.size / 1048576).toFixed(2) + ' MB';
+
+  // Gera o .docx e o PDF juntos e já baixa os dois.
+  async function exportFiles(){
     const btn = document.getElementById('btn-docx');
     btn.disabled = true;
-    const done = overlay('Gerando .docx…');
+    const done = overlay('Gerando .docx e PDF…');
     try{
       await flushSave();
       const i = S.insp;
@@ -572,52 +576,83 @@
         const img = await loadImg(e.photoId);
         images.extras.push(img ? { ...img, caption: e.caption } : { caption: e.caption });
       }
-      const blob = await REP.buildReport({ inspection: i, images, logo: await loadLogo(), outputType: 'blob' });
-      const name = REP.reportFileName(i.houseCode);
-      S.lastExport = { blob: new Blob([blob], { type: WORD_MIME }), name };
+      const docxBlob = await REP.buildReport({ inspection: i, images, logo: await loadLogo('logo-solarminas.png', 'png'), outputType: 'blob' });
+      const pdfBuf = PDF.buildPdf({ inspection: i, images, logo: await loadLogo('logo-solarminas.jpg', 'jpg') });
+      S.lastExport = { files: [
+        { blob: new Blob([docxBlob], { type: WORD_MIME }), name: REP.reportFileName(i.houseCode), type: WORD_MIME, label: '.docx', icon: '📝' },
+        { blob: new Blob([pdfBuf], { type: PDF_MIME }), name: PDF.pdfFileName(i.houseCode), type: PDF_MIME, label: 'PDF', icon: '📄' }
+      ] };
       i.exportedAt = new Date().toISOString();
       await flushSave();
       i.status = 'exported';
       await DB.putInspection(JSON.parse(JSON.stringify(i)));
       const k = S.list.findIndex(o => o.id === i.id); if (k >= 0) S.list[k] = JSON.parse(JSON.stringify(i));
-      document.getElementById('export-result').innerHTML = exportResultHTML();
-      bindExportButtons();
-      toast('✓ Relatório gerado');
+      done();
+      await renderStep();
+      // Baixa os dois arquivos direto (o navegador pode pedir para permitir vários downloads).
+      S.lastExport.files.forEach((f, n) => setTimeout(() => downloadViaLink(f), n * 600));
+      toast('✓ .docx e PDF gerados. Baixando para a pasta Downloads…', false, 4000);
     }catch(err){
+      done();
       console.error(err);
-      toast('Erro ao gerar o .docx: ' + (err && err.message || err), true, 6000);
+      toast('Erro ao gerar os arquivos: ' + (err && err.message || err), true, 6000);
     }finally{
-      done(); btn.disabled = false;
+      const b = document.getElementById('btn-docx'); if (b) b.disabled = false;
     }
   }
-  function canShareFile(){
-    if (!S.lastExport || !navigator.canShare) return false;
-    try { return navigator.canShare({ files: [new File([S.lastExport.blob], S.lastExport.name, { type: WORD_MIME })] }); }
-    catch(e){ return false; }
+  const asFile = f => new File([f.blob], f.name, { type: f.type });
+  function shareableFiles(){
+    if (!S.lastExport || !navigator.canShare) return null;
+    const all = S.lastExport.files.map(asFile);
+    try{
+      if (navigator.canShare({ files: all })) return all;
+      if (navigator.canShare({ files: [all[0]] })) return [all[0]];
+    }catch(e){}
+    return null;
   }
   function exportResultHTML(){
-    const e = S.lastExport;
-    return `<div class="file">📝 ${esc(e.name)} · ${(e.blob.size / 1048576).toFixed(2)} MB</div>
+    const files = S.lastExport.files;
+    return `${files.map(f => `<div class="file">${f.icon} ${esc(f.name)} · ${sizeMB(f.blob)}</div>`).join('')}
+      ${shareableFiles() ? '<button type="button" class="btn-teal" id="btn-share" style="width:100%;margin-bottom:10px">📤 Compartilhar (WhatsApp, e-mail…)</button>' : ''}
       <div class="photo-row">
-        ${canShareFile() ? '<button type="button" class="btn-teal" id="btn-share">📤 Compartilhar</button>' : ''}
-        <button type="button" class="btn-ghost" id="btn-download" style="flex:1">⬇️ Baixar</button>
+        ${files.map((f, n) => `<button type="button" class="btn-ghost" data-download="${n}" style="flex:1">⬇️ Baixar ${f.label}</button>`).join('')}
       </div>`;
+  }
+  function downloadViaLink(f){
+    const url = URL.createObjectURL(f.blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = f.name; a.rel = 'noopener'; a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 60000);
+  }
+  // No computador (Chrome/Edge) abre a janela "Salvar como"; nos demais, download direto.
+  async function downloadFile(f){
+    if (window.showSaveFilePicker){
+      try{
+        const ext = f.name.slice(f.name.lastIndexOf('.'));
+        const handle = await window.showSaveFilePicker({ suggestedName: f.name, types: [{ description: f.label, accept: { [f.type]: [ext] } }] });
+        const w = await handle.createWritable();
+        await w.write(f.blob); await w.close();
+        toast('✓ ' + f.name + ' salvo');
+        return;
+      }catch(err){
+        if (err && err.name === 'AbortError') return; // usuário cancelou
+        console.warn('Salvar como indisponível, usando download direto', err);
+      }
+    }
+    downloadViaLink(f);
+    toast('⬇️ ' + f.name + ': confira a pasta Downloads', false, 3500);
   }
   function bindExportButtons(){
     const sh = document.getElementById('btn-share');
     if (sh) sh.onclick = async () => {
-      const e = S.lastExport;
-      try { await navigator.share({ files: [new File([e.blob], e.name, { type: WORD_MIME })], title: e.name }); }
-      catch(err){ if (!err || err.name !== 'AbortError'){ console.error(err); toast('Não abriu o compartilhamento. Use “Baixar”.', true, 4000); } }
+      const files = shareableFiles();
+      if (!files) return;
+      try { await navigator.share({ files, title: files[0].name }); }
+      catch(err){ if (!err || err.name !== 'AbortError'){ console.error(err); toast('Não abriu o compartilhamento. Use os botões Baixar.', true, 4000); } }
     };
-    const dl = document.getElementById('btn-download');
-    if (dl) dl.onclick = () => {
-      const e = S.lastExport;
-      const url = URL.createObjectURL(e.blob);
-      const a = document.createElement('a'); a.href = url; a.download = e.name;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    };
+    view.querySelectorAll('[data-download]').forEach(b => b.onclick = () => downloadFile(S.lastExport.files[+b.dataset.download]));
   }
 
   /* ---------------- início ---------------- */

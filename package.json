@@ -9,6 +9,7 @@
   "devDependencies": {
     "docx": "9.10.0",
     "esbuild": "0.25.0",
+    "jspdf": "^4.2.1",
     "jszip": "^3.10.1"
   }
 }
