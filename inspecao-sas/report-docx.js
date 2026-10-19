@@ -3,7 +3,7 @@
    buildReport(data) -> Promise<Blob|Buffer>
    data = {
      inspection,                       // registro salvo (sem blobs)
-     images: { checklist, frente, estaca, estacaCodigo, extras: [{...img, caption}] },
+     images: { checklist, frente, estaca, estacaCodigo, chuveiro, extras: [{...img, caption}] },
      logo,                             // img
      outputType: 'blob' | 'nodebuffer'
    }
@@ -193,6 +193,8 @@
     body.push(...figure(images.frente, 'Frente da residência', 'frente da residência'));
     body.push(...figure(images.estaca, 'Local da estaca', 'local da estaca'));
     body.push(...figure(images.estacaCodigo, 'Estaca com o código da residência', 'estaca com o código da residência'));
+    // Figura 4: chuveiro, só quando houver foto (sem quadro vazio).
+    if (images.chuveiro) body.push(...figure(images.chuveiro, 'Chuveiro', 'chuveiro'));
     (images.extras || []).forEach(ex => {
       const cap = (ex.caption || '').trim() || '[LEGENDA DA FOTO]';
       body.push(...figure(ex.data ? ex : null, cap, cap));

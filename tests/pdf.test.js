@@ -27,7 +27,8 @@ test('pdf completo', () => {
   const buf = buildPdf({ inspection: base, logo, card, images: {
     checklist: jpg('checklist.jpg', 2200, 1238), frente: jpg('frente.jpg', 1600, 900),
     estaca: jpg('estaca.jpg', 1600, 900), estacaCodigo: jpg('estaca.jpg', 1600, 900),
-    extras: [{ ...jpg('frente.jpg', 1600, 900), caption: 'Chuveiro' }]
+    chuveiro: jpg('estaca.jpg', 1600, 900),
+    extras: [{ ...jpg('frente.jpg', 1600, 900), caption: "Caixa d'água" }]
   } });
   fs.writeFileSync(path.join(OUT, pdfFileName(base.houseCode)), Buffer.from(buf));
   assert.strictEqual(pdfFileName(base.houseCode), 'Relatorio_Visita_POE01.pdf');

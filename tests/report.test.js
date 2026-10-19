@@ -38,10 +38,14 @@ test('relatório completo', async () => {
   const { buf, xml, zip } = await build(base, {
     checklist: jpg('checklist.jpg', 2200, 1238), frente: jpg('frente.jpg', 1600, 900),
     estaca: jpg('estaca.jpg', 1600, 900), estacaCodigo: jpg('estaca.jpg', 1600, 900),
-    extras: [{ ...jpg('frente.jpg', 1600, 900), caption: 'Chuveiro' }]
+    chuveiro: jpg('estaca.jpg', 1600, 900),
+    extras: [{ ...jpg('frente.jpg', 1600, 900), caption: "Caixa d'água" }]
   });
   assert.ok(buf.length < 8 * 1024 * 1024);
   assert.match(xml, /SEQ Figura/);
+  const vis = (xml.match(/<w:t[ >][^<]*/g) || []).join(' ');
+  assert.match(vis, /Figura 4 - Chuveiro/);          // índice: chuveiro é a Figura 4
+  assert.match(vis, /Figura 5 - Caixa d(&apos;|')água/);      // extras depois dele
   const visible = (xml.match(/<w:t[ >][^<]*/g) || []).join(' ');
   assert.doesNotMatch(visible, /Figure/);
   assert.match(xml, /TOC .*\\c &quot;Figura&quot;|TOC .*\\c "Figura"/);
@@ -65,6 +69,7 @@ test('código curto no relatório e no nome do arquivo', async () => {
   const visible = (xml.match(/<w:t[ >][^<]*/g) || []).join(' ');
   assert.match(visible, /POE01/);
   assert.doesNotMatch(visible, /86204/);
+  assert.doesNotMatch(visible, /Chuveiro|chuveiro\]/);   // sem foto do chuveiro: sem figura e sem quadro
   assert.strictEqual(reportFileName('POE01'), 'Relatorio_Visita_POE01.docx');
 });
 

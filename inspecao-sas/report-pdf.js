@@ -156,6 +156,8 @@
     figure(images.frente, 'Frente da residência', 'frente da residência');
     figure(images.estaca, 'Local da estaca', 'local da estaca');
     figure(images.estacaCodigo, 'Estaca com o código da residência', 'estaca com o código da residência');
+    // Figura 4: chuveiro, só quando houver foto (sem quadro vazio).
+    if (images.chuveiro) figure(images.chuveiro, 'Chuveiro', 'chuveiro');
     (images.extras || []).forEach(ex => {
       const cap = (ex.caption || '').trim() || '[LEGENDA DA FOTO]';
       figure(ex.data ? ex : null, cap, cap);

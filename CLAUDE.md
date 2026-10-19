@@ -44,7 +44,7 @@ Reaproveitar padrões, estilos e componentes do app. O módulo novo entra como 5
 
 1. **Identificação**: comunidade (lista das 12 localidades da seção 6), número da residência (2 dígitos), código gerado automaticamente (ex.: `POE01`), data da inspeção (padrão: hoje, editável), responsável técnico (padrão: Juliano Ciriaco da Silva Junior, editável).
 2. **Checklist manuscrito**: tirar foto do formulário de papel preenchido e assinado (a assinatura do responsável e do proprietário continua no papel). Foto obrigatória. Permitir refazer. Dica de enquadramento na tela ("pegue a folha inteira, sem sombra, na horizontal"). Sem assinatura digital no app.
-3. **Fotos**: Figura 1 (frente da residência), Figura 2 (local da estaca) com ferramenta de **círculo vermelho** (toque e arraste para desenhar, desfazer, refazer), Figura 3 (estaca com o código escrito). Fotos adicionais opcionais com legenda livre (ex.: "Chuveiro"), numeradas em sequência (Figura 4 em diante).
+3. **Fotos**: Figura 1 (frente da residência), Figura 2 (local da estaca) com ferramenta de **círculo vermelho** (toque e arraste para desenhar, desfazer, refazer), Figura 3 (estaca com o código escrito), Figura 4 (chuveiro, opcional: sem chuveiro a figura não entra, sem quadro vazio). Outras fotos opcionais com legenda livre, numeradas em sequência depois do chuveiro.
 4. **Observações técnicas**: chips por tema (seção 7) mais campo de texto livre. Mostrar a **prévia do texto final** que vai para o documento, editável.
 5. **Revisão e exportar**: resumo, avisos de pendência (foto faltando, campo vazio) e botão "Gerar .docx". Permitir exportar com placeholder visível se faltar algo (ex.: `[INSERIR FOTO: frente da residência]`), nunca com imagem de outra residência.
 

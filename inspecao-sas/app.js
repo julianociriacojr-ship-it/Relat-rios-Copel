@@ -64,7 +64,7 @@
       id: uid(), communityId: '', houseNumber: '', houseCode: '',
       inspectionDate: todayISO(), technician: CFG.defaultTechnician,
       docCode: CFG.docCode, rev: CFG.rev,
-      photos: { checklist: null, frente: null, estaca: null, estacaMarcada: null, estacaCodigo: null },
+      photos: { checklist: null, frente: null, estaca: null, estacaMarcada: null, estacaCodigo: null, chuveiro: null },
       estacaCircles: [],
       extraPhotos: [],
       observations: { chips: {}, freeText: '', finalText: '', finalEdited: false },
@@ -94,7 +94,9 @@
     if (!i.photos.estaca) add('Falta a Figura 2 (local da estaca).');
     else if (!(i.estacaCircles || []).length) add('Figura 2 sem o círculo vermelho marcando a estaca.', true);
     if (!i.photos.estacaCodigo) add('Falta a Figura 3 (estaca com o código).');
-    (i.extraPhotos || []).forEach((e, k) => { if (!String(e.caption || '').trim()) add(`Figura ${k + 4} sem legenda.`); });
+    const ch0 = (i.observations && i.observations.chips) || {};
+    if (ch0.chuveiro === 'existe' && !i.photos.chuveiro) add('Chuveiro marcado como existente, mas sem a foto (Figura 4).', true);
+    (i.extraPhotos || []).forEach((e, k) => { if (!String(e.caption || '').trim()) add(`Figura ${firstExtraFig(i) + k} sem legenda.`); });
     const ch = (i.observations && i.observations.chips) || {};
     const semResposta = OBS.CHIPS.filter(g => !ch[g.key]).map(g => g.label);
     if (semResposta.length) add('Observações sem resposta: ' + semResposta.join(', ') + '.', true);
@@ -103,6 +105,8 @@
     else { const w = GEO.regionWarning(i.gps.lat, i.gps.lon); if (w) add('Coordenadas: ' + w, true); }
     return out;
   }
+  // Figura 4 = chuveiro (opcional). As fotos extras vêm depois dela.
+  const firstExtraFig = i => (i.photos && i.photos.chuveiro) ? 5 : 4;
   function stepDone(i, n){
     if (n === 1) return !!OBS.getCommunity(i.communityId) && !OBS.houseNumberError(i.communityId, i.houseNumber) && !!i.inspectionDate && !!String(i.technician || '').trim();
     if (n === 2) return !!i.photos.checklist;
@@ -512,7 +516,7 @@
     const url = await photoURL(id);
     const has = !!i.photos[slot];
     return `<div class="slot">
-      <div class="slot-head"><strong>${esc(title)}</strong><span class="badge ${has ? 'ok' : 'missing'}">${has ? '✓ Foto salva' : 'Faltando'}</span></div>
+      <div class="slot-head"><strong>${esc(title)}</strong><span class="badge ${has ? 'ok' : (opts.optional ? 'optional' : 'missing')}">${has ? '✓ Foto salva' : (opts.optional ? 'Opcional' : 'Faltando')}</span></div>
       ${url ? `<img src="${url}" alt="${esc(title)}">` : `<div class="slot-empty">${esc(emptyText)}</div>`}
       <div class="slot-body">
         <div class="photo-row">
@@ -568,16 +572,17 @@
     if (S.step === 3){
       const circles = (i.estacaCircles || []).length;
       const extras = [];
+      const f0 = firstExtraFig(i);
       for (let k = 0; k < i.extraPhotos.length; k++){
         const e = i.extraPhotos[k];
         const url = await photoURL(e.photoId);
         extras.push(`<div class="slot">
-          <div class="slot-head"><strong>Figura ${k + 4}</strong><span class="badge ${String(e.caption || '').trim() ? 'ok' : 'missing'}">${String(e.caption || '').trim() ? '✓' : 'Sem legenda'}</span></div>
-          ${url ? `<img src="${url}" alt="Figura ${k + 4}">` : ''}
+          <div class="slot-head"><strong>Figura ${f0 + k}</strong><span class="badge ${String(e.caption || '').trim() ? 'ok' : 'missing'}">${String(e.caption || '').trim() ? '✓' : 'Sem legenda'}</span></div>
+          ${url ? `<img src="${url}" alt="Figura ${f0 + k}">` : ''}
           <div class="slot-body">
             <label class="f" for="ex-${k}">Legenda</label>
-            <input id="ex-${k}" type="text" data-extra-caption="${k}" placeholder="Ex.: Chuveiro" value="${esc(e.caption)}">
-            <button type="button" class="btn-line danger" data-extra-remove="${k}">Remover Figura ${k + 4}</button>
+            <input id="ex-${k}" type="text" data-extra-caption="${k}" placeholder="Ex.: Caixa d'água" value="${esc(e.caption)}">
+            <button type="button" class="btn-line danger" data-extra-remove="${k}">Remover Figura ${f0 + k}</button>
           </div>
         </div>`);
       }
@@ -590,7 +595,11 @@
         })}
         ${gpsHTML()}
         ${await slotHTML('estacaCodigo', 'Figura 3 · Estaca com o código escrito', 'Foto da estaca mostrando o código da residência.')}
-        ${CFG.allowExtraPhotos ? `<h2 style="margin-top:18px">Fotos adicionais (opcional)</h2>
+        ${await slotHTML('chuveiro', 'Figura 4 · Chuveiro (se houver)', 'Opcional. Se a residência não tiver chuveiro, deixe em branco: a figura não entra no relatório.', {
+          optional: true,
+          extra: i.photos.chuveiro ? '<button type="button" class="btn-line danger" data-slot-remove="chuveiro">Remover foto do chuveiro</button>' : ''
+        })}
+        ${CFG.allowExtraPhotos ? `<h2 style="margin-top:18px">Outras fotos (opcional)</h2>
         ${extras.join('')}
         <div class="photo-row">
           <label class="add-btn">📷 + Foto extra<input type="file" accept="image/*" capture="environment" data-slot-input="extra"></label>
@@ -626,7 +635,7 @@
       const c = OBS.getCommunity(i.communityId);
       const pend = pendencias(i);
       const hard = pend.filter(p => !p.soft), soft = pend.filter(p => p.soft);
-      const nFig = 3 + i.extraPhotos.length;
+      const nFig = 3 + (i.photos.chuveiro ? 1 : 0) + i.extraPhotos.length;
       html += `<section class="card"><h2>5. Revisão</h2>
         <table class="sum-table">
           <tr><td>Código</td><td><b>${esc(i.houseCode)}</b></td></tr>
@@ -635,7 +644,7 @@
           <tr><td>Responsável técnico</td><td>${esc(i.technician)}</td></tr>
           <tr><td>Checklist</td><td>${i.photos.checklist ? '✓ foto salva' : 'faltando'}</td></tr>
           <tr><td>Coordenadas</td><td>${i.gps ? esc(GEO.fmt(i.gps.lat) + ' · ' + GEO.fmt(i.gps.lon)) : 'não registradas'}</td></tr>
-          <tr><td>Figuras</td><td>${[i.photos.frente, i.photos.estaca, i.photos.estacaCodigo].filter(Boolean).length + i.extraPhotos.length} de ${nFig}</td></tr>
+          <tr><td>Figuras</td><td>${[i.photos.frente, i.photos.estaca, i.photos.estacaCodigo, i.photos.chuveiro].filter(Boolean).length + i.extraPhotos.length} de ${nFig}</td></tr>
           <tr><td>Status</td><td><span class="status ${i.status}">${STATUS_LABEL[i.status]}</span></td></tr>
         </table>
       </section>
@@ -718,12 +727,16 @@
     const circleBtn = document.getElementById('btn-circle'); if (circleBtn) circleBtn.onclick = editCircles;
     const gpsBtn = document.getElementById('btn-gps'); if (gpsBtn) gpsBtn.onclick = startGps;
     const gpsMan = document.getElementById('btn-gps-manual'); if (gpsMan) gpsMan.onclick = saveManualGps;
+    view.querySelectorAll('[data-slot-remove]').forEach(b => b.onclick = async () => {
+      if (!confirm('Remover esta foto?')) return;
+      await replaceSlot(b.dataset.slotRemove, null); await flushSave(); renderStep();
+    });
     view.querySelectorAll('[data-extra-caption]').forEach(inp => inp.addEventListener('input', () => {
       S.insp.extraPhotos[+inp.dataset.extraCaption].caption = inp.value; scheduleSave();
     }));
     view.querySelectorAll('[data-extra-remove]').forEach(b => b.onclick = async () => {
       const k = +b.dataset.extraRemove;
-      if (!confirm(`Remover a Figura ${k + 4}? As figuras seguintes serão renumeradas.`)) return;
+      if (!confirm(`Remover a Figura ${firstExtraFig(S.insp) + k}? As figuras seguintes serão renumeradas.`)) return;
       const [e] = S.insp.extraPhotos.splice(k, 1);
       dropURL(e.photoId); await DB.deletePhoto(e.photoId); await flushSave(); renderStep();
     });
@@ -860,6 +873,7 @@
         frente: await loadImg(i.photos.frente),
         estaca: await loadImg(i.photos.estacaMarcada || i.photos.estaca),
         estacaCodigo: await loadImg(i.photos.estacaCodigo),
+        chuveiro: await loadImg(i.photos.chuveiro),
         extras: []
       };
       for (const e of i.extraPhotos){

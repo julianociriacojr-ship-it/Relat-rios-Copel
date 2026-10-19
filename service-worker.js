@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solarminas-relatorios-v12';
+const CACHE_NAME = 'solarminas-relatorios-v13';
 const ASSETS = [
   './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   // Módulo Inspeção SAS (PEE Copel): tudo local para funcionar em modo avião

@@ -181,3 +181,4 @@ summary{ font-weight:700; color:var(--teal-deep); min-height:44px; display:flex;
 .gps-live.bad{ background:#F7DEDA; color:#5c140c; }
 .btn-ghost:disabled, .btn-teal:disabled{ opacity:.5; }
 .list-tools .warn-box{ margin-top:0; }
+.badge.optional{ background:#EDECE8; color:var(--ink-soft); }
