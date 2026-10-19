@@ -546,12 +546,12 @@
     return { data: await blobBytes(p.blob), width: p.width, height: p.height, type: 'jpg' };
   }
   const logoCache = {};
-  async function loadLogo(file, type){
+  async function loadLogo(file, type, width = 772, height = 235){
     if (logoCache[file] !== undefined) return logoCache[file];
     try{
       const r = await fetch('inspecao-sas/' + file);
       if (!r.ok) throw new Error(r.status);
-      logoCache[file] = { data: new Uint8Array(await r.arrayBuffer()), width: 772, height: 235, type };
+      logoCache[file] = { data: new Uint8Array(await r.arrayBuffer()), width, height, type };
     }catch(e){ console.warn('Logo indisponível', e); logoCache[file] = null; }
     return logoCache[file];
   }
@@ -576,8 +576,10 @@
         const img = await loadImg(e.photoId);
         images.extras.push(img ? { ...img, caption: e.caption } : { caption: e.caption });
       }
-      const docxBlob = await REP.buildReport({ inspection: i, images, logo: await loadLogo('logo-solarminas.png', 'png'), outputType: 'blob' });
-      const pdfBuf = PDF.buildPdf({ inspection: i, images, logo: await loadLogo('logo-solarminas.jpg', 'jpg') });
+      const cc = CFG.contactCard;
+      const card = cc ? await loadLogo(cc.file, 'png', cc.width, cc.height) : null;
+      const docxBlob = await REP.buildReport({ inspection: i, images, logo: await loadLogo('logo-solarminas.png', 'png'), card, outputType: 'blob' });
+      const pdfBuf = PDF.buildPdf({ inspection: i, images, logo: await loadLogo('logo-solarminas.jpg', 'jpg'), card });
       S.lastExport = { files: [
         { blob: new Blob([docxBlob], { type: WORD_MIME }), name: REP.reportFileName(i.houseCode), type: WORD_MIME, label: '.docx', icon: '📝' },
         { blob: new Blob([pdfBuf], { type: PDF_MIME }), name: PDF.pdfFileName(i.houseCode), type: PDF_MIME, label: 'PDF', icon: '📄' }

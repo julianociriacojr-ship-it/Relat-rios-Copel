@@ -38,7 +38,7 @@
   }
   const t = s => OBS.noLongDash(s);
 
-  async function buildReport({ inspection: insp, images, logo, outputType }){
+  async function buildReport({ inspection: insp, images, logo, card, outputType }){
     const D = root.docx || require('docx');
     const {
       Document, Packer, Paragraph, TextRun, ImageRun, Table, TableRow, TableCell, WidthType,
@@ -215,7 +215,13 @@
     if (rec) rec.split(/\n+/).map(s => s.trim()).filter(Boolean).forEach(par => body.push(P(par)));
 
     /* ---------------- Cartão de contato ---------------- */
+    // Preferência: a imagem do cartão (inspecao-sas/cartao-contato.png).
+    // Sem ela, monta um cartão em texto com os dados de CFG.contact.
     const c = CFG.contact;
+    if (card){
+      body.push(new Paragraph({ alignment: AlignmentType.CENTER, keepLines: true, spacing: { before: 400 },
+        children: [imgRun(card, fit(card, { w: 11 * PX_PER_CM, h: 7 * PX_PER_CM }))] }));
+    } else {
     const line = (text, o = {}) => new Paragraph({ spacing: { after: 20 }, keepNext: true, keepLines: true,
       children: [new TextRun({ text, size: o.size || 19, bold: o.bold, color: o.color || COLOR_INK })] });
     body.push(new Paragraph({ spacing: { before: 600 }, keepNext: true, children: [] }));
@@ -229,10 +235,11 @@
         new TableCell({ width: { size: 7 * CM, type: WidthType.DXA }, borders: noBorders, verticalAlign: VerticalAlign.CENTER, margins: { left: 280 },
           children: [
             line(c.nome, { bold: true, size: 22 }), line(c.area, { bold: true, size: 17, color: COLOR_TITLE }),
-            line(c.email), line(c.celular), line(c.telefone), line(c.site), line(c.cidade)
+            line(c.email), line(c.celular), line(c.telefone), line(c.site)
           ] })
       ] })]
     }));
+    }
 
     // Índice de Ilustrações: campo TOC \c "Figura" (o Word refaz com F9) já
     // preenchido com uma linha por figura e PAGEREF para a página da legenda.

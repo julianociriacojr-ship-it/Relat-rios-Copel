@@ -13,7 +13,7 @@
     docCode: 'SAC-RELAT.SM 22/07/26',
     rev: '00',
 
-    defaultTechnician: 'Matheus Henrique Dias',
+    defaultTechnician: 'Juliano Ciriaco da Silva Junior',
     company: 'Solar Minas LTDA',
 
     // prefix: null = ainda não confirmado. O código sai com placeholder
@@ -54,14 +54,16 @@
       conclusao: 'Com base na inspeção realizada, conclui-se que as informações necessárias para o planejamento da instalação do Sistema de Aquecimento Solar de Água foram devidamente levantadas. O local de instalação foi definido e identificado em campo, permitindo o prosseguimento das etapas de execução, observadas as condições e eventuais recomendações registradas neste relatório.'
     },
 
+    // Cartão de contato no fim do relatório: imagem inspecao-sas/cartao-contato.png
+    // (1050 x 600 px). Os textos abaixo são usados só se a imagem faltar.
+    contactCard: { file: 'cartao-contato.png', width: 1050, height: 600 },
     contact: {
-      nome: 'Matheus Dias',
-      area: 'ENGENHARIA',
-      email: 'engenharia@solarminas.com.br',
-      celular: '(35) 9.9854-4286',
+      nome: 'Juliano Ciriaco',
+      area: 'ENGENHEIRO CIVIL | CREA 389442-MG',
+      email: 'orcamento@solarminas.com.br',
+      celular: '(35) 9 9871-7328',
       telefone: '+55 (35) 3713-1352',
-      site: 'www.solarminas.com.br',
-      cidade: 'Poços de Caldas - MG'
+      site: 'www.solarminas.com.br'
     }
   };
 

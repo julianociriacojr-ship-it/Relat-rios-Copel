@@ -16,17 +16,18 @@ const { buildReport, reportFileName } = require('../inspecao-sas/report-docx.js'
 const fx = f => fs.readFileSync(path.join(__dirname, 'fixtures', f));
 const jpg = (f, w, h) => ({ data: fx(f), width: w, height: h, type: 'jpg' });
 const logo = { data: fs.readFileSync(path.join(__dirname, '..', 'inspecao-sas', 'logo-solarminas.png')), width: 772, height: 235, type: 'png' };
+const card = { data: new Uint8Array(fs.readFileSync(path.join(__dirname, '..', 'inspecao-sas', 'cartao-contato.png'))), width: 1050, height: 600, type: 'png' };
 const OUT = path.join(__dirname, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 
 const base = {
   communityId: 'poe', houseNumber: '01', houseCode: '86204POE01', inspectionDate: '2026-10-13',
-  technician: 'Matheus Henrique Dias', docCode: 'SAC-RELAT.SM 22/07/26', rev: '00',
+  technician: 'Juliano Ciriaco da Silva Junior', docCode: 'SAC-RELAT.SM 22/07/26', rev: '00',
   observations: { chips: { agua: 'poco', bomba: 'sim' }, freeText: '' }
 };
 
 async function build(insp, images){
-  const buf = await buildReport({ inspection: insp, images, logo, outputType: 'nodebuffer' });
+  const buf = await buildReport({ inspection: insp, images, logo, card, outputType: 'nodebuffer' });
   const name = reportFileName(insp.houseCode);
   fs.writeFileSync(path.join(OUT, name), buf);
   const zip = await JSZip.loadAsync(buf);

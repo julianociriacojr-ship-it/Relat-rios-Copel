@@ -28,7 +28,7 @@
   function fit(img, w, h){ const r = Math.min(w / img.width, h / img.height); return { w: img.width * r, h: img.height * r }; }
   const fmt = img => (img.type === 'png' ? 'PNG' : 'JPEG');
 
-  function buildPdf({ inspection: insp, images, logo }){
+  function buildPdf({ inspection: insp, images, logo, card }){
     const { jsPDF } = root.jspdf || require('jspdf');
     const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
 
@@ -176,15 +176,22 @@
 
     /* ---------------- Cartão de contato ---------------- */
     const c = CFG.contact;
-    const cardH = 44;
-    if (room() < cardH + 6) newPage(); else y += 6;
-    const cx = ML + 20;
-    if (logo){ const s = fit(logo, 44, 16); doc.addImage(logo.data, fmt(logo), cx, y + (cardH - s.h) / 2, s.w, s.h, undefined, 'FAST'); }
-    doc.setDrawColor(...C_RULE); doc.setLineWidth(0.6); doc.line(cx + 50, y, cx + 50, y + cardH);
-    let ly = y + 5;
-    const cl = (txt, style, size, col) => { font(style, size, col); doc.text(txt, cx + 56, ly); ly += size * 0.48; };
-    cl(c.nome, 'bold', 11); cl(c.area, 'bold', 8.5, C_TITLE); ly += 1;
-    [c.email, c.celular, c.telefone, c.site, c.cidade].forEach(v => cl(v, 'normal', 9.5));
+    if (card){
+      const s = fit(card, 110, 63);
+      if (room() < s.h + 6) newPage(); else y += 6;
+      doc.addImage(card.data, fmt(card), ML + (CW - s.w) / 2, y, s.w, s.h, undefined, 'FAST');
+      y += s.h;
+    } else {
+      const cardH = 40;
+      if (room() < cardH + 6) newPage(); else y += 6;
+      const cx = ML + 20;
+      if (logo){ const s = fit(logo, 44, 16); doc.addImage(logo.data, fmt(logo), cx, y + (cardH - s.h) / 2, s.w, s.h, undefined, 'FAST'); }
+      doc.setDrawColor(...C_RULE); doc.setLineWidth(0.6); doc.line(cx + 50, y, cx + 50, y + cardH);
+      let ly = y + 5;
+      const cl = (txt, style, size, col) => { font(style, size, col); doc.text(txt, cx + 56, ly); ly += size * 0.48; };
+      cl(c.nome, 'bold', 11); cl(c.area, 'bold', 8.5, C_TITLE); ly += 1;
+      [c.email, c.celular, c.telefone, c.site].forEach(v => cl(v, 'normal', 9.5));
+    }
 
     /* ---------------- Sumário e Índice (agora com as páginas) ---------------- */
     function tocTitle(page, text){

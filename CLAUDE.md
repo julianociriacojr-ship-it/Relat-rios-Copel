@@ -2,7 +2,7 @@
 
 ## 1. Contexto
 
-- Empresa: Solar Minas LTDA (Poços de Caldas, MG). Responsável técnico padrão: Matheus Henrique Dias.
+- Empresa: Solar Minas LTDA (Poços de Caldas, MG). Responsável técnico padrão: Juliano Ciriaco da Silva Junior.
 - Projeto: PEE Comunidades Isoladas, Povos originários do litoral do Paraná. Contratante: Companhia Paranaense de Energia (Copel). Total de 218 moradias em 12 comunidades.
 - Hoje o Relatório de Inspeção Técnica (1 por residência) é feito em Word, à mão, no escritório. O objetivo é gerar o relatório em campo, pelo celular, e exportar em .docx (e PDF depois) para ajuste posterior no computador.
 - O relatório tem cerca de 90% de texto fixo. Varia só: capa (código, local, data), 3 fotos (mais extras opcionais), foto do checklist manuscrito e as Observações Técnicas.
@@ -42,7 +42,7 @@ Reaproveitar padrões, estilos e componentes do app. O módulo novo entra como 5
 
 **Formulário (5 passos)**
 
-1. **Identificação**: comunidade (lista das 12 localidades da seção 6), número da residência (2 dígitos), código completo gerado automaticamente (ex.: `86204POE01`), data da inspeção (padrão: hoje, editável), responsável técnico (padrão: Matheus Henrique Dias, editável).
+1. **Identificação**: comunidade (lista das 12 localidades da seção 6), número da residência (2 dígitos), código completo gerado automaticamente (ex.: `86204POE01`), data da inspeção (padrão: hoje, editável), responsável técnico (padrão: Juliano Ciriaco da Silva Junior, editável).
 2. **Checklist manuscrito**: tirar foto do formulário de papel preenchido e assinado (a assinatura do responsável e do proprietário continua no papel). Foto obrigatória. Permitir refazer. Dica de enquadramento na tela ("pegue a folha inteira, sem sombra, na horizontal"). Sem assinatura digital no app.
 3. **Fotos**: Figura 1 (frente da residência), Figura 2 (local da estaca) com ferramenta de **círculo vermelho** (toque e arraste para desenhar, desfazer, refazer), Figura 3 (estaca com o código escrito). Fotos adicionais opcionais com legenda livre (ex.: "Chuveiro"), numeradas em sequência (Figura 4 em diante).
 4. **Observações técnicas**: chips por tema (seção 7) mais campo de texto livre. Mostrar a **prévia do texto final** que vai para o documento, editável.
@@ -57,7 +57,7 @@ Inspection {
   houseNumber: string          // "01"
   houseCode: string            // "86204POE01" (gerado)
   inspectionDate: string       // ISO
-  technician: string           // padrão "Matheus Henrique Dias"
+  technician: string           // padrão "Juliano Ciriaco da Silva Junior"
   docCode: string              // "SAC-RELAT.SM 22/07/26" (config, não é a data da inspeção)
   rev: string                  // "00"
   checklistPhoto: Blob
@@ -135,7 +135,7 @@ Com base na inspeção realizada, conclui-se que as informações necessárias p
 
 **Capa (campos)**: título "RELATÓRIO DE INSPEÇÃO TÉCNICA"; Código da Residência; Local (nome da localidade); Data da Inspeção (dd/mm/aaaa); Empresa: Solar Minas LTDA; Responsável Técnico.
 
-**Rodapé final (cartão de contato)**: logo Solar Minas, "Matheus Dias, ENGENHARIA", engenharia@solarminas.com.br, (35) 9.9854-4286, +55 (35) 3713-1352, www.solarminas.com.br, Poços de Caldas - MG.
+**Rodapé final (cartão de contato)**: imagem `inspecao-sas/cartao-contato.png` (cartão de assinatura de Juliano Ciriaco, ENGENHEIRO CIVIL | CREA 389442-MG, orcamento@solarminas.com.br, (35) 9 9871-7328, +55 (35) 3713-1352, www.solarminas.com.br).
 
 ## 9. Layout do documento (.docx)
 
