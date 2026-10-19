@@ -13,7 +13,17 @@ O SAT entra no painel, baixa o .docx, revisa a linguagem, sobe a versão revisad
 - `enviar-central.sh`: envia o código e reinicia só o serviço da central.
 - `diagnostico-vps.sh`: só leitura, para conferir o servidor.
 
-## Instalar (uma vez)
+## Instalar ou atualizar (um comando, no computador do Juliano)
+
+```bash
+ssh -i ~/.ssh/vps_bot root@169.58.19.125 "curl -fsSL https://raw.githubusercontent.com/julianociriacojr-ship-it/Relat-rios-Copel/main/servidor/instalar-na-vps.sh | bash -s -- central.169-58-19-125.sslip.io"
+```
+
+Endereço grátis pelo sslip.io (sem cadastro nem DNS). O comando prepara a VPS, baixa o código do
+GitHub, liga o serviço e cria o acesso `juliano` (admin), mostrando a senha uma vez.
+Rodar de novo atualiza o código sem apagar dados.
+
+## Instalar em partes (alternativa)
 
 1. DNS: criar o endereço da central apontando para o IP da VPS (registro A), por exemplo
    `relatorios.solarminas.com.br -> 169.58.19.125`.

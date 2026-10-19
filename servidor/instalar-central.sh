@@ -118,6 +118,4 @@ EOF
 fi
 
 echo
-echo "== Pronto. Próximo passo (no computador do Juliano):"
-echo "   bash servidor/enviar-central.sh 169.58.19.125"
-echo "   Lembrete: o endereço $DOMINIO precisa apontar para o IP desta VPS para o HTTPS funcionar."
+echo "== Preparação pronta para $DOMINIO."
