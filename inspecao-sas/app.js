@@ -105,6 +105,83 @@
     else { const w = GEO.regionWarning(i.gps.lat, i.gps.lon); if (w) add('Coordenadas: ' + w, true); }
     return out;
   }
+  // Conferência antes de sair da casa. "naCasa" = só dá para resolver lá
+  // (fotos, coordenadas, respostas de campo). "depois" = dá para fazer no
+  // barco ou no escritório (círculo, legendas, texto).
+  const GPS_IDEAL = 10;   // metros
+  function conferencia(i){
+    const naCasa = [], depois = [];
+    const ch = (i.observations && i.observations.chips) || {};
+    if (OBS.houseNumberError(i.communityId, i.houseNumber) || !OBS.getCommunity(i.communityId)) naCasa.push({ msg: 'Comunidade e número da residência (o código vai na estaca)', step: 1 });
+    if (!i.photos.checklist) naCasa.push({ msg: 'Foto do checklist preenchido e assinado', step: 2 });
+    if (!i.photos.frente) naCasa.push({ msg: 'Figura 1: frente da residência', step: 3 });
+    if (!i.photos.estaca) naCasa.push({ msg: 'Figura 2: local da estaca', step: 3 });
+    if (!i.photos.estacaCodigo) naCasa.push({ msg: 'Figura 3: estaca com o código escrito', step: 3 });
+    if (ch.chuveiro === 'existe' && !i.photos.chuveiro) naCasa.push({ msg: 'Figura 4: chuveiro (marcado como existente)', step: 3 });
+    if (!i.gps) naCasa.push({ msg: 'Coordenadas da estaca', step: 3 });
+    else if (i.gps.accuracy != null && i.gps.accuracy > GPS_IDEAL) naCasa.push({ msg: `Coordenadas com precisão de ±${i.gps.accuracy} m. O ideal é até ${GPS_IDEAL} m: capture de novo ao lado da estaca`, step: 3 });
+    const sem = OBS.CHIPS.filter(g => !ch[g.key]).map(g => g.label);
+    if (sem.length) naCasa.push({ msg: 'Observações sem resposta: ' + sem.join(', '), step: 4 });
+    if (i.photos.estaca && !(i.estacaCircles || []).length) depois.push({ msg: 'Círculo vermelho na Figura 2', step: 3 });
+    (i.extraPhotos || []).forEach((e, k) => { if (!String(e.caption || '').trim()) depois.push({ msg: `Legenda da Figura ${firstExtraFig(i) + k}`, step: 3 }); });
+    if (!String(i.observations.finalText || '').trim()) depois.push({ msg: 'Texto das observações técnicas', step: 4 });
+    return { naCasa, depois };
+  }
+  // Próximo número livre da comunidade neste aparelho (depois do atual; se
+  // acabar, o primeiro livre). null quando todas as moradias já existem.
+  function proximoNumero(communityId, atual){
+    const c = OBS.getCommunity(communityId); if (!c) return null;
+    const usados = new Set(S.list.filter(o => o.communityId === communityId && o.houseNumber).map(o => parseInt(o.houseNumber, 10)));
+    const base = parseInt(atual, 10) || 0, total = c.moradias || 99;
+    for (let n = base + 1; n <= total; n++) if (!usados.has(n)) return OBS.normalizeHouseNumber(String(n));
+    for (let n = 1; n <= Math.min(base, total); n++) if (!usados.has(n)) return OBS.normalizeHouseNumber(String(n));
+    return null;
+  }
+  async function novaInspecao({ communityId = '', depoisDe = '', technician } = {}){
+    const i = newInspection();
+    if (communityId){ i.communityId = communityId; i.houseNumber = proximoNumero(communityId, depoisDe) || ''; }
+    if (technician) i.technician = technician;
+    S.insp = i; await flushSave();
+    location.hash = `#/i/${i.id}/1`;
+    return i;
+  }
+  function abrirConferencia(){
+    const i = S.insp;
+    const { naCasa, depois } = conferencia(i);
+    const prox = OBS.getCommunity(i.communityId) ? proximoNumero(i.communityId, i.houseNumber) : null;
+    const proxCod = prox ? OBS.buildHouseCode(i.communityId, prox) : '';
+    const item = (p, cls) => `<li class="${cls}"><span>${esc(p.msg)}</span><button type="button" class="btn-line" data-ir="${p.step}">Resolver</button></li>`;
+    const box = document.createElement('div');
+    box.className = 'sheet-bg';
+    box.innerHTML = `<div class="sheet" role="dialog" aria-label="Conferência antes de sair da casa">
+      <h2>Conferência de ${esc(i.houseCode)}</h2>
+      ${naCasa.length
+        ? `<div class="conf-bad">⚠ Antes de sair da casa, falta:</div><ul class="conf">${naCasa.map(p => item(p, 'bad')).join('')}</ul>`
+        : `<div class="conf-ok">✓ Tudo o que depende da casa está registrado.</div>`}
+      ${depois.length ? `<div class="conf-later">Pode fazer depois, fora da casa:</div><ul class="conf">${depois.map(p => item(p, 'later')).join('')}</ul>` : ''}
+      <div class="sheet-actions">
+        ${naCasa.length ? `<button type="button" class="btn-primary" data-ir="${naCasa[0].step}">Resolver agora</button>` : ''}
+        ${prox ? `<button type="button" class="${naCasa.length ? 'btn-ghost' : 'btn-primary'}" data-a="prox">${naCasa.length ? 'Sair mesmo assim e ir' : 'Próxima casa:'} ${esc(proxCod)} →</button>` : ''}
+        <button type="button" class="btn-ghost" data-a="lista">${naCasa.length ? 'Sair mesmo assim (lista)' : 'Voltar à lista'}</button>
+        <button type="button" class="btn-line" data-a="fechar">Continuar nesta casa</button>
+      </div></div>`;
+    document.body.appendChild(box);
+    const sair = async destino => {
+      if (naCasa.length && !confirm(`Ainda falta ${naCasa.length === 1 ? '1 item' : naCasa.length + ' itens'} que só dá para fazer na casa. Sair mesmo assim?`)) return;
+      box.remove();
+      if (destino === 'prox') await novaInspecao({ communityId: i.communityId, depoisDe: i.houseNumber, technician: i.technician });
+      else location.hash = '#/';
+      setTimeout(() => syncCentral({ silencioso: true }), 800);   // cópia de segurança da casa que ficou, se houver sinal
+    };
+    box.addEventListener('click', e => {
+      if (e.target === box){ box.remove(); return; }
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.ir){ box.remove(); goStep(+b.dataset.ir); return; }
+      if (b.dataset.a === 'fechar') box.remove();
+      else if (b.dataset.a === 'prox') sair('prox');
+      else if (b.dataset.a === 'lista') sair('lista');
+    });
+  }
   // Figura 4 = chuveiro (opcional). As fotos extras vêm depois dela.
   const firstExtraFig = i => (i.photos && i.photos.chuveiro) ? 5 : 4;
   function stepDone(i, n){
@@ -128,6 +205,8 @@
     setSaveState('pending', 'Salvando…');
     clearTimeout(S.saveTimer);
     S.saveTimer = setTimeout(flushSave, 350);
+    clearTimeout(S.copiaTimer);
+    S.copiaTimer = setTimeout(() => syncCentral({ silencioso: true }), 70000);
   }
   function flushSave(){
     clearTimeout(S.saveTimer); S.saveTimer = null;
@@ -299,12 +378,7 @@
       <p class="hint" id="storage-hint"></p>`;
     footer.style.display = 'flex';
     footer.innerHTML = `<button type="button" class="btn-primary" id="btn-new">+ Nova inspeção</button>`;
-    document.getElementById('btn-new').onclick = async () => {
-      const i = newInspection();
-      if (filter) i.communityId = filter;
-      S.insp = i; await flushSave();
-      location.hash = `#/i/${i.id}/1`;
-    };
+    document.getElementById('btn-new').onclick = () => novaInspecao({ communityId: filter });
     document.getElementById('filter').onchange = e => { try { localStorage.setItem(FILTER_KEY, e.target.value); } catch(err){} renderList(); };
     view.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { location.hash = `#/i/${b.dataset.open}/1`; });
     document.getElementById('btn-backup').onclick = () => backupInspections(items, fc ? fc.nome : 'todas');
@@ -396,6 +470,29 @@
   // Se mudar algo depois de enviar, a versão nova sobe sozinha.
   const pediuCentral = i => !!(i.centralPedido || i.centralVersion);
   const needsCentral = i => pediuCentral(i) && i.centralVersion !== i.updatedAt;
+  // Cópia de segurança automática: com login e sinal, o backup (.zip) de toda
+  // inspeção sobe sozinho para a central, numa área que só o administrador vê.
+  // Não vai para o SAT; serve para não perder nada se o celular sumir.
+  const needsCopia = i => !!OBS.getCommunity(i.communityId) && i.copiaVersion !== i.updatedAt && !needsCentral(i);
+  async function copiaCentral(rec){
+    const fresh = await DB.getInspection(rec.id);
+    if (!fresh) return;
+    const backup = await BACKUP.build([fresh]);
+    const c = OBS.getCommunity(fresh.communityId);
+    await CENTRAL.enviar(fresh, c ? c.nome : '', { backup }, { soCopia: true });
+    await marcarEnviado(fresh, { copia: true });
+  }
+  async function marcarEnviado(fresh, { copia }){
+    const cur = await DB.getInspection(fresh.id);          // grava sem mexer no updatedAt
+    if (!cur || cur.updatedAt !== fresh.updatedAt) return;
+    const agora = new Date().toISOString();
+    const campos = copia ? { backupAt: agora, copiaVersion: fresh.updatedAt }
+                         : { backupAt: agora, copiaVersion: fresh.updatedAt, centralAt: agora, centralVersion: fresh.updatedAt };
+    Object.assign(cur, campos);
+    await DB.putInspection(cur);
+    if (S.insp && S.insp.id === cur.id) Object.assign(S.insp, campos);
+    const k = S.list.findIndex(o => o.id === cur.id); if (k >= 0) S.list[k] = cur;
+  }
   let syncing = false;
   async function sendToCentral(rec){
     const fresh = await DB.getInspection(rec.id);
@@ -404,21 +501,15 @@
     const backup = await BACKUP.build([fresh]);
     const c = OBS.getCommunity(fresh.communityId);
     await CENTRAL.enviar(fresh, c ? c.nome : '', { docx, backup });
-    const cur = await DB.getInspection(fresh.id);          // grava sem mexer no updatedAt
-    if (cur && cur.updatedAt === fresh.updatedAt){
-      // o backup .zip foi junto: a central guarda a cópia de segurança
-      cur.centralAt = cur.backupAt = new Date().toISOString(); cur.centralVersion = fresh.updatedAt;
-      await DB.putInspection(cur);
-      if (S.insp && S.insp.id === cur.id){ S.insp.centralAt = cur.centralAt; S.insp.backupAt = cur.backupAt; S.insp.centralVersion = cur.centralVersion; }
-      const k = S.list.findIndex(o => o.id === cur.id); if (k >= 0) S.list[k] = cur;
-    }
+    await marcarEnviado(fresh, { copia: false });          // o backup .zip foi junto
   }
   async function syncCentral({ silencioso, apenas } = {}){
-    if (!CENTRAL.ativo() || syncing) return;
+    if (!CENTRAL.ativo()) return;
+    if (syncing){ S.syncDepois = true; return; }
     if (!CENTRAL.sessao()){ if (!silencioso) loginCentral(); return; }
     if (!navigator.onLine){ if (!silencioso) toast('Sem internet. As inspeções sobem sozinhas quando houver sinal.', true, 4000); return; }
     syncing = true;
-    let ok = 0, falha = null;
+    let ok = 0, copias = 0, falha = null;
     try{
       const todas = await DB.listInspections();
       const fila = todas.filter(i => apenas ? i.id === apenas : needsCentral(i));
@@ -426,10 +517,22 @@
         try { await sendToCentral(i); ok++; }
         catch(err){ falha = err; if (err.auth || err.offline) break; }
       }
+      if (!apenas && !(falha && (falha.auth || falha.offline))){
+        for (const i of (await DB.listInspections()).filter(needsCopia)){
+          // a inspeção aberta só sobe depois de 1 minuto sem mexer (evita subir a cada foto)
+          if (S.insp && S.insp.id === i.id && Date.now() - Date.parse(i.updatedAt) < 60000) continue;
+          try { await copiaCentral(i); copias++; }
+          catch(err){ if (err.auth || err.offline) break; console.warn('Cópia de segurança:', err); }
+        }
+      }
       if (ok) toast(`☁️ ${ok} ${ok === 1 ? 'inspeção enviada' : 'inspeções enviadas'} para a central`, false, 3500);
       if (falha && !(silencioso && falha.offline)) toast('Central: ' + falha.message, true, 5000);
       if (falha && falha.auth && !silencioso) loginCentral();
-    } finally { syncing = false; }
+    } finally {
+      syncing = false;
+      if (S.syncDepois){ S.syncDepois = false; setTimeout(() => syncCentral({ silencioso: true }), 1000); }
+    }
+    if (copias && !S.insp && !location.hash.startsWith('#/memorial')) renderList();
     if (ok){ if (S.insp && S.step === 5) renderStep(); else if (!S.insp && !location.hash.startsWith('#/memorial')) renderList(); }
   }
   function loginCentral(){
@@ -460,7 +563,7 @@
     if (!CENTRAL.ativo()) return '';
     const sess = CENTRAL.sessao();
     const pend = items.filter(needsCentral).length;
-    if (!sess) return `<div class="warn-box">☁️ <b>Central de relatórios:</b> entre uma vez (com internet) para mandar o Word das inspeções para o SAT.
+    if (!sess) return `<div class="warn-box">☁️ <b>Central de relatórios:</b> entre uma vez (com internet). Depois disso, a cópia de segurança de cada inspeção sobe sozinha quando houver sinal, e você manda o Word ao SAT quando quiser.
       <button type="button" class="btn-line" id="btn-central-login">Entrar na central</button></div>`;
     return `<div class="${pend ? 'warn-box' : 'all-ok'}" style="margin:0">☁️ Central: <b>${esc(sess.nome)}</b> · ${pend ? `${pend} aguardando envio` : 'tudo enviado'}
       <div class="photo-row" style="margin-top:8px">${pend ? '<button type="button" class="btn-teal" id="btn-central-sync">Enviar agora</button>' : ''}<button type="button" class="btn-ghost" id="btn-central-sair" style="flex:1">Sair da central</button></div></div>`;
@@ -758,9 +861,10 @@
     footer.style.display = 'flex';
     footer.innerHTML = `
       ${S.step > 1 ? '<button type="button" class="btn-ghost" id="btn-prev">← Anterior</button>' : '<a class="btn-ghost" href="#/" style="text-decoration:none;display:flex;align-items:center">Lista</a>'}
-      ${S.step < 5 ? '<button type="button" class="btn-teal" id="btn-next">Próximo →</button>' : '<a class="btn-teal" href="#/" style="text-decoration:none;display:flex;align-items:center;justify-content:center">Concluir</a>'}`;
+      ${S.step < 5 ? '<button type="button" class="btn-teal" id="btn-next">Próximo →</button>' : '<button type="button" class="btn-teal" id="btn-concluir">Concluir ✓</button>'}`;
     const prev = document.getElementById('btn-prev'); if (prev) prev.onclick = () => goStep(S.step - 1);
     const next = document.getElementById('btn-next'); if (next) next.onclick = () => goStep(S.step + 1);
+    const concl = document.getElementById('btn-concluir'); if (concl) concl.onclick = async () => { await flushSave(); abrirConferencia(); };
     window.scrollTo({ top: y });
   }
 

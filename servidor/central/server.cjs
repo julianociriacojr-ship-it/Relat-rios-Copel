@@ -94,7 +94,9 @@ async function gravarMeta(id, meta){
   await fsp.writeFile(f + '.tmp', JSON.stringify(meta, null, 1));
   await fsp.rename(f + '.tmp', f);                    // escrita atômica
 }
-const podeVer = (u, meta) => u.papel !== 'tecnico' || meta.enviadoPor === u.usuario;
+// Técnico vê só o que ele enviou. SAT vê o que foi mandado para ele: a cópia
+// de segurança automática (paraSat === false) fica só para o administrador.
+const podeVer = (u, meta) => u.papel === 'admin' || (u.papel === 'sat' ? meta.paraSat !== false : meta.enviadoPor === u.usuario);
 // Uma alteração por vez em cada inspeção: ler meta.json, mudar e gravar sem
 // que outro pedido simultâneo (ex.: envio do arquivo e mudança de status)
 // grave por cima com uma cópia antiga.
@@ -144,18 +146,33 @@ async function rotas(req, res, u){
     return comTrava(id, async () => {
     const atual = await lerMeta(id);
     if (atual && !podeVer(u, atual)) return json(res, 403, { erro: 'Inspeção de outro técnico.' });
+    const ident = {
+      houseCode: String(novo.houseCode || ''), communityId: String(novo.communityId || ''), comunidade: String(novo.comunidade || ''),
+      inspectionDate: String(novo.inspectionDate || ''), technician: String(novo.technician || ''),
+      gps: novo.gps && typeof novo.gps.lat === 'number' ? { lat: novo.gps.lat, lon: novo.gps.lon, accuracy: novo.gps.accuracy ?? null } : null
+    };
+    // Cópia de segurança automática do app: guarda o backup sem mandar para o SAT
+    // e sem mexer no status nem no histórico de quem já está com o SAT.
+    if (novo.soCopia){
+      const meta = atual
+        ? { ...atual, ...ident, copiaEm: new Date().toISOString() }
+        : { id, enviadoPor: u.usuario, enviadoPorNome: u.nome, status: 'recebido', arquivos: {}, tipo: 'inspecao_sas', titulo: '', nomeBase: '',
+            ...ident, paraSat: false, atualizadoNoAppEm: '', recebidoEm: new Date().toISOString(), copiaEm: new Date().toISOString() };
+      if (!atual) registrar(meta, u, 'cópia de segurança');
+      await gravarMeta(id, meta);
+      return json(res, 200, meta);
+    }
     const meta = {
       ...(atual || { id, enviadoPor: u.usuario, enviadoPorNome: u.nome, status: 'recebido', arquivos: {} }),
       tipo: TIPOS.includes(novo.tipo) ? novo.tipo : 'inspecao_sas',
       titulo: String(novo.titulo || '').slice(0, 200), nomeBase: String(novo.nomeBase || '').replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 120),
-      houseCode: String(novo.houseCode || ''), communityId: String(novo.communityId || ''), comunidade: String(novo.comunidade || ''),
-      inspectionDate: String(novo.inspectionDate || ''), technician: String(novo.technician || ''),
-      gps: novo.gps && typeof novo.gps.lat === 'number' ? { lat: novo.gps.lat, lon: novo.gps.lon, accuracy: novo.gps.accuracy ?? null } : null,
+      ...ident, paraSat: true,
       atualizadoNoAppEm: String(novo.updatedAt || ''), recebidoEm: new Date().toISOString()
     };
     // Reenvio depois da revisão: avisa o SAT voltando para "recebido"
     if (atual && atual.status !== 'recebido' && atual.atualizadoNoAppEm !== meta.atualizadoNoAppEm){ meta.status = 'recebido'; registrar(meta, u, 'reenviado pelo técnico'); }
     if (!atual) registrar(meta, u, 'recebido');
+    else if (atual.paraSat === false){ meta.status = 'recebido'; registrar(meta, u, 'enviado ao SAT'); }
     await gravarMeta(id, meta);
     return json(res, 200, meta);
     });
@@ -204,7 +221,7 @@ async function rotas(req, res, u){
     if (!STATUS.includes(status)) return json(res, 400, { erro: 'Status inválido' });
     return comTrava(m[1], async () => {
       const meta = await lerMeta(m[1]);
-      if (!meta) return json(res, 404, { erro: 'Inspeção não encontrada' });
+      if (!meta || !podeVer(u, meta)) return json(res, 404, { erro: 'Inspeção não encontrada' });
       meta.status = status; registrar(meta, u, 'status: ' + status);
       await gravarMeta(m[1], meta);
       return json(res, 200, meta);

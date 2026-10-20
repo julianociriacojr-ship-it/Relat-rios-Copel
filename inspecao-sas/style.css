@@ -182,3 +182,18 @@ summary{ font-weight:700; color:var(--teal-deep); min-height:44px; display:flex;
 .btn-ghost:disabled, .btn-teal:disabled{ opacity:.5; }
 .list-tools .warn-box{ margin-top:0; }
 .badge.optional{ background:#EDECE8; color:var(--ink-soft); }
+
+/* Conferência antes de sair da casa */
+.sheet-bg{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:95; display:flex; align-items:flex-end; justify-content:center; }
+.sheet{ background:#fff; width:100%; max-width:640px; max-height:92vh; overflow-y:auto; border-radius:16px 16px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); }
+.sheet h2{ margin:0 0 12px; font-size:18px; color:var(--teal-deep); }
+.conf-ok{ padding:14px; border-radius:8px; background:#DCEFE3; color:var(--ok); font-weight:800; font-size:16px; }
+.conf-bad{ padding:12px 14px; border-radius:8px; background:#F8DCD8; color:var(--danger); font-weight:800; font-size:16px; }
+.conf-later{ margin-top:14px; font-weight:700; color:#4A585D; font-size:14px; }
+ul.conf{ list-style:none; margin:8px 0 0; padding:0; }
+ul.conf li{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #E6E3DD; font-size:15px; }
+ul.conf li span{ flex:1; }
+ul.conf li.bad span{ font-weight:700; color:#5c1a12; }
+ul.conf li .btn-line{ width:auto; margin:0; padding:8px 12px; min-height:44px; flex-shrink:0; }
+.sheet-actions{ display:flex; flex-direction:column; gap:10px; margin-top:16px; }
+.sheet-actions button{ width:100%; min-height:52px; }

@@ -37,11 +37,12 @@
   }
 
   // Envia uma inspeção: dados (meta) e os arquivos. files = { docx, pdf, backup } (Blobs)
-  async function enviar(insp, comunidade, files){
+  // extra.soCopia = cópia de segurança automática (só o administrador vê)
+  async function enviar(insp, comunidade, files, extra = {}){
     await req(`/api/inspecoes/${encodeURIComponent(insp.id)}/meta`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ houseCode: insp.houseCode, communityId: insp.communityId, comunidade, inspectionDate: insp.inspectionDate,
-        technician: insp.technician, gps: insp.gps || null, updatedAt: insp.updatedAt })
+        technician: insp.technician, gps: insp.gps || null, updatedAt: insp.updatedAt, ...extra })
     });
     for (const tipo of ['docx', 'pdf', 'backup']){
       if (files[tipo]) await req(`/api/inspecoes/${encodeURIComponent(insp.id)}/arquivos/${tipo}`, { method: 'PUT', body: files[tipo] });

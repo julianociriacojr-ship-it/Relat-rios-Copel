@@ -13,6 +13,7 @@ const { servidor } = require('../servidor/central/server.cjs');
 usuarios.definir(DADOS, 'joao', 'tecnico', 'João', 'senha-joao');
 usuarios.definir(DADOS, 'ana', 'tecnico', 'Ana', 'senha-ana');
 usuarios.definir(DADOS, 'maria', 'sat', 'Maria SAT', 'senha-maria');
+usuarios.definir(DADOS, 'chefe', 'admin', 'Chefe', 'senha-chefe');
 
 let base;
 test.before(() => new Promise(r => servidor.listen(0, '127.0.0.1', () => { base = `http://127.0.0.1:${servidor.address().port}`; r(); })));
@@ -85,6 +86,32 @@ test('envios simultâneos na mesma inspeção não se apagam', async () => {
   const item = (await (await req('/api/inspecoes', {}, maria)).json()).find(i => i.id === id);
   assert.deepStrictEqual(Object.keys(item.arquivos).sort(), ['backup', 'docx']);
   assert.strictEqual(item.status, 'em_revisao');
+});
+
+test('cópia de segurança automática: só o administrador vê até ir para o SAT', async () => {
+  const joao = await login('joao', 'senha-joao'), maria = await login('maria', 'senha-maria'), chefe = await login('chefe', 'senha-chefe');
+  const id = 'insp-copia-000001';
+  const base = { houseCode: 'POE10', communityId: 'poe', comunidade: 'Ilha do Mel, Ponta Oeste', updatedAt: 'v1' };
+  let r = await req(`/api/inspecoes/${id}/meta`, { method: 'PUT', body: JSON.stringify({ ...base, soCopia: true }) }, joao);
+  assert.strictEqual((await r.json()).paraSat, false);
+  await req(`/api/inspecoes/${id}/arquivos/backup`, { method: 'PUT', body: Buffer.from('ZIP') }, joao);
+  const doSat = async () => (await (await req('/api/inspecoes', {}, maria)).json()).find(i => i.id === id);
+  assert.strictEqual(await doSat(), undefined);
+  assert.strictEqual((await req(`/api/inspecoes/${id}/arquivos/backup`, {}, maria)).status, 403);
+  assert.strictEqual((await req(`/api/inspecoes/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'em_revisao' }) }, maria)).status, 404);
+  assert.ok((await (await req('/api/inspecoes', {}, chefe)).json()).find(i => i.id === id));
+  assert.ok((await (await req('/api/inspecoes', {}, joao)).json()).find(i => i.id === id));
+  // técnico manda para o SAT: aparece para ele
+  await req(`/api/inspecoes/${id}/meta`, { method: 'PUT', body: JSON.stringify({ ...base, updatedAt: 'v2' }) }, joao);
+  const item = await doSat();
+  assert.strictEqual(item.paraSat, true);
+  assert.ok(item.historico.some(h => h.acao === 'enviado ao SAT'));
+  // nova cópia automática depois disso não tira do SAT nem muda o status
+  await req(`/api/inspecoes/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'em_revisao' }) }, maria);
+  await req(`/api/inspecoes/${id}/meta`, { method: 'PUT', body: JSON.stringify({ ...base, updatedAt: 'v3', soCopia: true }) }, joao);
+  const depois = await doSat();
+  assert.strictEqual(depois.paraSat, true);
+  assert.strictEqual(depois.status, 'em_revisao');
 });
 
 test('CORS só para o app autorizado', async () => {

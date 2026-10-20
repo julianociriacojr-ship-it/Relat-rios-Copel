@@ -38,6 +38,12 @@ O preenchimento e os documentos continuam iguais. Mudou só o que fica por trás
 - **Inspeção SAS**: "Gerar e baixar .docx + PDF + backup" continua igual. O envio para a central é opcional, pelo botão "☁️ Enviar para a central" (vai o Word e o backup .zip). Depois de enviada, se a inspeção mudar, a versão nova sobe sozinha.
 - **Painel do SAT**: só baixar. O SAT baixa o Word, ajusta e manda ao cliente por conta própria; nada volta revisado para a central. Filtro por tipo de relatório.
 
+## Em campo
+
+- **Conferência antes de sair da casa**: "Concluir ✓" (passo 5) separa o que só dá para resolver na casa (fotos, coordenadas, precisão acima de 10 m, respostas das observações, número da casa) do que pode ficar para depois (círculo, legendas, texto). Cada item tem "Resolver", que leva ao passo certo.
+- **Próxima casa**: da conferência, um toque abre a próxima inspeção com a mesma comunidade e responsável e o próximo número livre neste aparelho. "Nova inspeção" com a lista filtrada por comunidade também já vem com o próximo número livre.
+- **Cópia de segurança automática**: com login na central e sinal, o backup (.zip) de cada inspeção sobe sozinho (ao sair da casa, ao voltar o sinal e 70 s depois da última alteração). Fica marcado `paraSat: false` e só o administrador vê no painel ("🔒 Só cópia de segurança"). O SAT só vê o que o técnico manda pelo botão "☁️ Enviar para a central".
+
 ## Coordenadas, backup e memorial
 
 - **GPS da estaca** (passo 3): captura ao vivo com a precisão em metros (funciona sem internet), leitura do GPS gravado na foto da galeria ou digitação. Grava latitude e longitude com sinal (WGS 84). Avisa quando a coordenada sai do litoral do Paraná ou parece trocada.

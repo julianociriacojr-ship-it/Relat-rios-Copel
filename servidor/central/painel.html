@@ -32,7 +32,7 @@
   td .sub{ color:var(--soft); font-size:13px; }
   .pill{ display:inline-block; padding:3px 9px; border-radius:12px; font-size:12px; font-weight:800; }
   .s-recebido{ background:#FFF4E0; color:#6b4710; } .s-em_revisao{ background:#D6E6EC; color:var(--teal); }
-  .s-revisado{ background:#DCEFE3; color:var(--ok); } .s-enviado_cliente{ background:#E6E1F5; color:#3e2f7a; }
+  .s-revisado{ background:#DCEFE3; color:var(--ok); } .s-copia{ background:#ECEAE6; color:var(--soft); display:inline-block; margin:2px 0; } .s-enviado_cliente{ background:#E6E1F5; color:#3e2f7a; }
   .err{ color:var(--danger); font-weight:600; margin-top:10px; }
   .hist{ font-size:12px; color:var(--soft); margin-top:6px; }
   .empty{ padding:30px; text-align:center; color:var(--soft); }
@@ -87,6 +87,7 @@ async function mostrar(){
   try { eu = await (await api('/api/eu')).json(); } catch(e){ return; }
   $('login').style.display = 'none'; $('app').style.display = 'block'; $('sair').style.display = '';
   $('who').textContent = `${eu.nome} · ${eu.papel === 'tecnico' ? 'técnico' : eu.papel.toUpperCase()}`;
+  if (eu.papel !== 'sat' && !$('f-status').querySelector('[value=_copia]')) $('f-status').insertAdjacentHTML('beforeend', '<option value="_copia">🔒 Só cópias de segurança</option>');
   carregar();
 }
 $('entrar').onclick = async () => {
@@ -116,7 +117,7 @@ async function carregar(){
 }
 function render(){
   const ft = $('f-tipo').value, fc = $('f-com').value, fs = $('f-status').value, q = $('f-busca').value.trim().toLowerCase();
-  const itens = lista.filter(i => (!ft || tipoDe(i) === ft) && (!fc || i.communityId === fc) && (!fs || i.status === fs) &&
+  const itens = lista.filter(i => (!ft || tipoDe(i) === ft) && (!fc || i.communityId === fc) && (!fs || (fs === '_copia' ? i.paraSat === false : i.status === fs && i.paraSat !== false)) &&
     (!q || [i.houseCode, i.titulo, i.technician, i.enviadoPorNome].join(' ').toLowerCase().includes(q)))
     .sort((a, b) => tipoDe(a).localeCompare(tipoDe(b)) || (a.houseCode || a.titulo || '').localeCompare(b.houseCode || b.titulo || '', 'pt-BR', { numeric: true }));
   $('count').textContent = `${itens.length} de ${lista.length}`;
@@ -126,6 +127,7 @@ function render(){
     const bt = (tipo, rot) => a[tipo] ? `<button class="link" data-baixar="${esc(i.id)}" data-tipo="${tipo}">${rot}</button>` : '';
     return `<tr>
       <td><div class="sub">${esc(TIPOS[tipoDe(i)] || tipoDe(i))}</div>
+        ${i.paraSat === false ? '<div class="pill s-copia">🔒 Só cópia de segurança (o SAT não vê)</div>' : ''}
         ${tipoDe(i) === 'inspecao_sas'
           ? `<div class="code">${esc(i.houseCode)}</div><div class="sub">${esc(i.comunidade)}</div><div class="sub">Inspeção ${esc(dataBR(i.inspectionDate))}</div>`
           : `<div class="code">${esc(i.titulo || i.nomeBase || i.id)}</div>`}
@@ -134,7 +136,7 @@ function render(){
       <td>${sat ? `<select data-status="${esc(i.id)}">${Object.entries(STATUS).map(([v, t]) => `<option value="${v}" ${i.status === v ? 'selected' : ''}>${t}</option>`).join('')}</select>`
                 : `<span class="pill s-${esc(i.status)}">${esc(STATUS[i.status] || i.status)}</span>`}
         <div class="hist">${(i.historico || []).slice(-3).map(h => `${esc(dt(h.em))} · ${esc(h.acao.replace(/^status: (\w+)$/, (x, v) => 'status: ' + (STATUS[v] || v)))}`).join('<br>')}</div></td>
-      <td>${a.docx ? `<button class="baixar-word" data-baixar="${esc(i.id)}" data-tipo="docx">⬇ Baixar Word</button>` : '<span class="sub">Word ainda não chegou</span>'}
+      <td>${a.docx ? `<button class="baixar-word" data-baixar="${esc(i.id)}" data-tipo="docx">⬇ Baixar Word</button>` : (i.paraSat === false ? '<span class="sub">Ainda não enviada ao SAT</span>' : '<span class="sub">Word ainda não chegou</span>')}
         <div class="sub" style="margin-top:6px">${bt('pdf', 'PDF')} ${bt('backup', 'backup .zip')}</div></td>
     </tr>`;
   }).join('') : '<tr><td colspan="4" class="empty">Nenhuma inspeção recebida ainda.</td></tr>';
