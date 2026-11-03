@@ -2,7 +2,9 @@
    MEMORIAL DESCRITIVO POR COMUNIDADE — GERAÇÃO DO .DOCX
    buildMemorial({
      communityId,
-     coords: { '86204POE01': { lat, lon }, ... },   // das inspeções no aparelho
+     coords: { '86204POE01': { lat, lon, accuracy?, utmE?, utmN? }, ... },
+                                                     // das inspeções no aparelho ou de planilha;
+                                                     // { semGps: true } = casa visitada sem leitura
      engineer,                                       // Engenheiro Responsável
      images: { logo, mapa, vistas: [img, img, img], card },
      outputType: 'blob' | 'nodebuffer'
@@ -13,6 +15,7 @@
   const CFG = root.SAS_CONFIG || require('./config.js');
   const OBS = root.SAS_OBS || require('./observations.js');
   const MEM = root.SAS_MEMORIAL_CONFIG || require('./memorial-config.js');
+  const GEO = root.SAS_GEO || require('./geo.js');
 
   const FONT = 'Calibri';
   const CM = 567;
@@ -44,14 +47,27 @@
   }
   function fill(text, v){ return t(String(text).replace(/\{([A-Z_]+)\}/g, (all, k) => (v[k] != null ? v[k] : all))); }
 
+  const fmtM = v => v.toFixed(2).replace('.', ',');
   // Linhas da Tabela 1: todas as moradias da comunidade, na ordem do código.
+  // Se houver coordenada de número acima do total de moradias (casa a mais
+  // em campo), ela entra também, para nada coletado ficar de fora.
   function coordinateRows(communityId, coords){
     const c = OBS.getCommunity(communityId);
+    const prefixo = OBS.buildRegistryCode(communityId, '00').slice(0, -2);
+    const maior = Object.keys(coords).filter(k => k.startsWith(prefixo)).map(k => parseInt(k.slice(prefixo.length), 10)).filter(isFinite);
+    const ate = Math.max(c.moradias, ...maior);
     const rows = [];
-    for (let n = 1; n <= c.moradias; n++){
+    for (let n = 1; n <= ate; n++){
       const code = OBS.buildRegistryCode(communityId, String(n).padStart(2, '0'));
       const p = coords[code];
-      rows.push({ code, lat: p ? fmtCoord(p.lat) : null, lon: p ? fmtCoord(p.lon) : null });
+      const ok = p && fmtCoord(p.lat) && fmtCoord(p.lon);
+      const utm = ok ? (p.utmE != null && p.utmN != null ? { e: p.utmE, n: p.utmN } : GEO.toUtm(p.lat, p.lon)) : null;
+      rows.push({
+        code, lat: ok ? fmtCoord(p.lat) : null, lon: ok ? fmtCoord(p.lon) : null,
+        utmE: utm ? fmtM(utm.e) : null, utmN: utm ? fmtM(utm.n) : null,
+        precisao: ok && typeof p.accuracy === 'number' ? p.accuracy : null,
+        semGps: !!(p && p.semGps), extra: n > c.moradias
+      });
     }
     return rows;
   }
@@ -83,7 +99,7 @@
       width: { size: w, type: WidthType.DXA }, borders: gridBorders, verticalAlign: VerticalAlign.CENTER,
       shading: o.fill ? { type: ShadingType.CLEAR, color: 'auto', fill: o.fill } : undefined,
       margins: { left: 80, right: 80 },
-      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: t(text), bold: o.bold, color: o.color })] })]
+      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: t(text), bold: o.bold, color: o.color, size: o.size })] })]
     });
 
     /* ------- figuras com legenda "Figura N: ..." e marcador para o índice ------- */
@@ -132,17 +148,38 @@
       ];
     }
     function tabelaCoordenadas(){
-      const w = [5 * CM, 3.6 * CM, 3.6 * CM];
-      const head = new TableRow({ tableHeader: true, children: [cell('Registro da Residência', w[0], { bold: true }), cell('Latitude', w[1], { bold: true }), cell('Longitude', w[2], { bold: true })] });
-      const body = rows.map(r => new TableRow({ cantSplit: true, children: [
-        cell(r.code, w[0]),
-        cell(r.lat || '[PENDENTE]', w[1], r.lat ? {} : { color: 'C2410C', bold: true }),
-        cell(r.lon || '[PENDENTE]', w[2], r.lon ? {} : { color: 'C2410C', bold: true })
-      ] }));
+      // Registro | Latitude | Longitude | UTM E | UTM N | Precisão, em 9 pt para caber na largura
+      const w = [3.1, 2.4, 2.4, 2.5, 2.7, 1.9].map(x => Math.round(x * CM));
+      const S = 18, falta = { color: 'C2410C', bold: true, size: S };
+      const head = new TableRow({ tableHeader: true, children: [
+        cell('Registro da Residência', w[0], { bold: true, size: S, fill: 'F2F2F2' }), cell('Latitude', w[1], { bold: true, size: S, fill: 'F2F2F2' }),
+        cell('Longitude', w[2], { bold: true, size: S, fill: 'F2F2F2' }), cell('UTM Leste (m)', w[3], { bold: true, size: S, fill: 'F2F2F2' }),
+        cell('UTM Norte (m)', w[4], { bold: true, size: S, fill: 'F2F2F2' }), cell('Precisão GPS (m)', w[5], { bold: true, size: S, fill: 'F2F2F2' })
+      ] });
+      const body = rows.map(r => {
+        const vazio = r.semGps ? '[SEM GPS]' : '[PENDENTE]';
+        return new TableRow({ cantSplit: true, children: [
+          cell(r.code, w[0], { size: S }),
+          cell(r.lat || vazio, w[1], r.lat ? { size: S } : falta),
+          cell(r.lon || vazio, w[2], r.lon ? { size: S } : falta),
+          cell(r.utmE || '-', w[3], { size: S }),
+          cell(r.utmN || '-', w[4], { size: S }),
+          cell(r.precisao != null ? '±' + String(r.precisao).replace('.', ',') : '-', w[5], { size: S })
+        ] });
+      });
+      const comGps = rows.filter(r => r.lat);
+      const prec = comGps.map(r => r.precisao).filter(x => x != null);
+      const resumo = `Coordenadas registradas em campo para ${comGps.length} de ${rows.length} residências`
+        + (prec.length ? `, com precisão indicada pelo GPS entre ${Math.min(...prec)} e ${Math.max(...prec)} m` : '') + '.'
+        + (rows.some(r => r.semGps) ? ' [SEM GPS]: residência visitada sem leitura de coordenadas.' : '')
+        + (rows.some(r => !r.lat && !r.semGps) ? ' [PENDENTE]: residência ainda sem coordenadas.' : '');
+      const nota = (text) => P([new TextRun({ text: t(text), italics: true, size: S })], { before: 60, after: 0, align: AlignmentType.CENTER });
       return [
         P('Tabela 1 - Relação das Coordenadas Geográficas das Residências', { keepNext: true, align: AlignmentType.CENTER, before: 120 }),
-        new Table({ width: { size: w[0] + w[1] + w[2], type: WidthType.DXA }, layout: TableLayoutType.FIXED, columnWidths: w, alignment: AlignmentType.CENTER, rows: [head, ...body] }),
-        P([new TextRun({ text: 'Coordenadas em graus decimais (WGS 84), com sinal: latitude negativa ao sul do Equador e longitude negativa a oeste de Greenwich.', italics: true, size: 18 })], { before: 80, align: AlignmentType.CENTER })
+        new Table({ width: { size: w.reduce((a, b) => a + b, 0), type: WidthType.DXA }, layout: TableLayoutType.FIXED, columnWidths: w, alignment: AlignmentType.CENTER, rows: [head, ...body] }),
+        nota('Latitude e longitude em graus decimais (WGS 84), com sinal: negativa ao sul do Equador e a oeste de Greenwich. UTM no fuso 22 Sul (WGS 84), em metros.'),
+        nota(resumo),
+        new Paragraph({ spacing: { after: 120 }, children: [] })
       ];
     }
 
@@ -178,7 +215,7 @@
           body.push(label('Local de Implantação:', v.LOCAL));
         } else if (item === 'TABELA_DISTRIBUICAO') body.push(...tabelaDistribuicao());
         else if (item === 'TABELA_COORDENADAS') body.push(...tabelaCoordenadas());
-        else if (item === 'FIGURA_MAPA') body.push(...figure(images.mapa, `Localização da ${v.COMUNIDADE}.`, `imagem aérea com a localização da ${v.COMUNIDADE}`, { w: 15 * PX_PER_CM, h: 17.5 * PX_PER_CM }));
+        else if (item === 'FIGURA_MAPA') body.push(...figure(images.mapa, v.m.legendaMapa || `Localização da ${v.COMUNIDADE}.`, `imagem aérea com a localização da ${v.COMUNIDADE}`, { w: 15 * PX_PER_CM, h: 17.5 * PX_PER_CM }));
         else if (item === 'FIGURAS_VISTAS'){
           MEM.vistas.forEach((vista, k) => body.push(...figure((images.vistas || [])[k], vista.legenda, vista.legenda.replace(/\.$/, '').toLowerCase(), { w: 15 * PX_PER_CM, h: 8.5 * PX_PER_CM })));
         } else if (item && item.bullets){

@@ -124,7 +124,27 @@
 `;
   }
 
-  const api = { fmt, parse, regionWarning, readExifGps, watch, combine, errorMessage, toKml, REGIAO };
+  // Graus decimais (WGS 84) para UTM. O fuso sai da longitude (litoral do
+  // Paraná: fuso 22). Fórmulas de Krüger até 4ª ordem (erro bem abaixo de 1 mm).
+  function toUtm(lat, lon){
+    if (typeof lat !== 'number' || typeof lon !== 'number' || !isFinite(lat) || !isFinite(lon)) return null;
+    const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996;
+    const zona = Math.floor((lon + 180) / 6) + 1, lon0 = (zona - 1) * 6 - 180 + 3;
+    const n = f / (2 - f), A = a / (1 + n) * (1 + n * n / 4 + n ** 4 / 64);
+    const al = [n / 2 - 2 * n * n / 3 + 5 * n ** 3 / 16, 13 * n * n / 48 - 3 * n ** 3 / 5, 61 * n ** 3 / 240];
+    const rad = Math.PI / 180, phi = lat * rad, dl = (lon - lon0) * rad;
+    const e2 = 2 * Math.sqrt(n) / (1 + n);
+    const tt = Math.sinh(Math.atanh(Math.sin(phi)) - e2 * Math.atanh(e2 * Math.sin(phi)));
+    const xi = Math.atan(tt / Math.cos(dl)), eta = Math.atanh(Math.sin(dl) / Math.sqrt(1 + tt * tt));
+    let E = eta, N = xi;
+    for (let j = 1; j <= 3; j++){
+      E += al[j - 1] * Math.cos(2 * j * xi) * Math.sinh(2 * j * eta);
+      N += al[j - 1] * Math.sin(2 * j * xi) * Math.cosh(2 * j * eta);
+    }
+    return { e: 500000 + k0 * A * E, n: (lat < 0 ? 10000000 : 0) + k0 * A * N, zona, hemisferio: lat < 0 ? 'S' : 'N' };
+  }
+
+  const api = { fmt, parse, regionWarning, readExifGps, watch, combine, errorMessage, toKml, toUtm, REGIAO };
   root.SAS_GEO = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -597,7 +597,7 @@
       .sort((a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''))
       .forEach(i => {
         const code = OBS.buildRegistryCode(i.communityId, i.houseNumber);   // registro do memorial: 86204POE01
-        if (OBS.houseCodeComplete(code)) out[code] = { lat: i.gps.lat, lon: i.gps.lon };
+        if (OBS.houseCodeComplete(code)) out[code] = { lat: i.gps.lat, lon: i.gps.lon, accuracy: i.gps.accuracy };
       });
     return out;
   }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solarminas-relatorios-v21';
+const CACHE_NAME = 'solarminas-relatorios-v22';
 const ASSETS = [
   './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   // Módulo Inspeção SAS (PEE Copel): tudo local para funcionar em modo avião
@@ -21,6 +21,10 @@ const ASSETS = [
   './inspecao-sas/cartao-contato.png',
   './inspecao-sas/memorial/logo-vertical.png',
   './inspecao-sas/memorial/mapa-poe.jpg',
+  './inspecao-sas/memorial/mapa-aba.jpg',
+  './inspecao-sas/memorial/mapa-bda.jpg',
+  './inspecao-sas/memorial/mapa-ara.jpg',
+  './inspecao-sas/memorial/mapa-vri.jpg',
   './inspecao-sas/memorial/vista-isometrica.jpg',
   './inspecao-sas/memorial/vista-frontal.jpg',
   './inspecao-sas/memorial/vista-lateral.jpg',

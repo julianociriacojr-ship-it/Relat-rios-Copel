@@ -63,3 +63,21 @@ test('outras comunidades usam os textos padrão com o próprio nome', async () =
   assert.match(visible, /acessíveis predominantemente por embarcações e trilhas locais/);
   assert.match(visible, /\[INSERIR IMAGEM: imagem aérea com a localização da Comunidade Sibuí\]/);
 });
+
+test('tabela com UTM, precisão, casa sem GPS e casa além do total', () => {
+  const geo = require('../inspecao-sas/geo.js');
+  const u = geo.toUtm(-25.2866136, -48.1724204);            // ABA01 da planilha de campo
+  assert.strictEqual(u.zona, 22); assert.strictEqual(u.hemisferio, 'S');
+  assert.ok(Math.abs(u.e - 784738.69) < 0.02 && Math.abs(u.n - 7200312.56) < 0.02);
+  const rows = coordinateRows('vila-rita', {
+    '86204VRI01': { lat: -25.2860482, lon: -48.1840523, accuracy: 3 },
+    '86204VRI10': { semGps: true },
+    '86204VRI11': { lat: -25.2890656, lon: -48.179784, utmE: 783991.06, utmN: 7200056.47, accuracy: 3 }
+  });
+  assert.strictEqual(rows.length, 11);                      // 10 moradias + VRI11 que veio de campo
+  assert.strictEqual(rows[0].utmE, '783568,06');
+  assert.strictEqual(rows[0].precisao, 3);
+  assert.strictEqual(rows[9].semGps, true);
+  assert.strictEqual(rows[10].extra, true);
+  assert.strictEqual(rows[10].utmN, '7200056,47');
+});
