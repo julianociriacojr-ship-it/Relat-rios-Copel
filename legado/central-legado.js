@@ -1,7 +1,7 @@
 /* ======================================================================
    RDO, VISITA, ENTREGA E OS — ENVIO PARA A CENTRAL DE RELATÓRIOS
-   O PDF continua só no celular, para compartilhar no WhatsApp.
-   O botão ☁️ (no lugar do antigo 📝 Word) gera o Word e manda para a central,
+   PDF (Gerar PDF) e Word (📝) continuam baixando no celular, como sempre.
+   O botão ☁️, ao lado, é opcional: gera o Word e manda para a central,
    onde o SAT baixa, ajusta e envia ao cliente. Sem sinal, o Word fica numa
    fila no aparelho (IndexedDB) e sobe sozinho quando a internet voltar.
    Usa o mesmo login da Inspeção SAS (inspecao-sas/central.js).
@@ -77,8 +77,8 @@
     }
   }
 
-  // Botão ☁️: monta o Word com o mesmo código de sempre (buildWordRDO etc.), mas em
-  // vez de baixar, o saveDocx manda o arquivo para a fila da central.
+  // Botão ☁️ (ao lado do 📝): monta o Word com o mesmo código de sempre (buildWordRDO
+  // etc.), mas em vez de baixar, o saveDocx manda o arquivo para a fila da central.
   const BUILD = { rdo: 'buildWordRDO', visita: 'buildWordVisita', entrega: 'buildWordEntrega', os: 'buildWordOS' };
   let paraCentral = false;
   const saveOriginal = window.saveDocx;
@@ -89,18 +89,21 @@
   };
   function enviarParaCentral(tela){
     if (!C.sessao()){ entrar(() => enviarParaCentral(tela)); return; }
-    runWithLoadingWord('btn-word-' + tela, async () => {
+    runWithLoadingWord('btn-cloud-' + tela, async () => {
       paraCentral = true;
       try { await window[BUILD[tela]](); } finally { paraCentral = false; }
       if (!navigator.onLine) showToast('☁️ Sem internet: o Word ficou guardado e sobe sozinho quando o sinal voltar.', 4500);
     });
   }
   Object.keys(BUILD).forEach(tela => {
-    const b = document.getElementById('btn-word-' + tela);
-    if (!b || typeof window[BUILD[tela]] !== 'function') return;
+    const word = document.getElementById('btn-word-' + tela);
+    if (!word || typeof window[BUILD[tela]] !== 'function') return;
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn-share'; b.id = 'btn-cloud-' + tela;
     b.textContent = '☁️'; b.title = 'Enviar o Word para a central';
     b.setAttribute('aria-label', 'Enviar o Word para a central');
     b.onclick = () => enviarParaCentral(tela);
+    word.after(b);
   });
 
   // Login (só na primeira vez; vale 60 dias)
@@ -148,7 +151,7 @@
     const pend = n ? `<div class="select-sub" style="margin-top:6px"><b>${n}</b> Word esperando envio${navigator.onLine ? '' : ' (sem internet, sobe sozinho quando voltar o sinal)'}.</div>` : '';
     el.innerHTML = s
       ? `<div class="ob-title">☁️ Central de relatórios</div>
-         <div class="select-sub">Conectado como <b>${esc(s.nome || s.usuario)}</b>. Use o botão ☁️ do relatório para mandar o Word para a central.</div>${pend}
+         <div class="select-sub">Conectado como <b>${esc(s.nome || s.usuario)}</b>. O botão ☁️ do relatório manda o Word para a central (opcional; o 📝 continua baixando o Word no celular).</div>${pend}
          <div class="draft-actions">${n ? '<button type="button" class="obra-chip" data-cl="enviar">Enviar agora</button>' : ''}<button type="button" class="obra-chip" data-cl="sair">Sair</button></div>`
       : `<div class="ob-title">☁️ Central de relatórios</div>
          <div class="select-sub">Para mandar o Word dos relatórios para o SAT (botão ☁️ no rodapé de cada relatório), entre uma vez.</div>${pend}
