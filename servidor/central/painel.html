@@ -48,6 +48,7 @@
     <h2 style="margin:0;color:var(--teal)">Entrar</h2>
     <label for="u">Usuário</label><input id="u" autocomplete="username">
     <label for="s">Senha</label><input id="s" type="password" autocomplete="current-password">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:600;cursor:pointer"><input type="checkbox" id="ver-senha" style="width:18px;height:18px;margin:0"> Mostrar senha</label>
     <button class="primary" id="entrar" style="width:100%;margin-top:16px">Entrar</button>
     <div class="err" id="login-err"></div>
   </div>
@@ -98,6 +99,7 @@ $('entrar').onclick = async () => {
   token = d.token; try { localStorage.setItem('central_token', token); } catch(e){}
   mostrar();
 };
+$('ver-senha').onchange = e => { $('s').type = e.target.checked ? 'text' : 'password'; };
 $('s').onkeydown = e => { if (e.key === 'Enter') $('entrar').click(); };
 $('sair').onclick = sair;
 $('atualizar').onclick = () => carregar();

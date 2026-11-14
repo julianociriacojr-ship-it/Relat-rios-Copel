@@ -541,11 +541,13 @@
     box.innerHTML = `<div style="max-width:92vw;width:360px;text-align:left">☁️ Entrar na central
       <label class="f" for="c-u">Usuário</label><input id="c-u" type="text" autocomplete="username" autocapitalize="none">
       <label class="f" for="c-s">Senha</label><input id="c-s" type="password" autocomplete="current-password">
+      <label style="display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px;font-weight:600;cursor:pointer"><input type="checkbox" id="c-ver" style="width:22px;height:22px;margin:0"> Mostrar senha</label>
       <div class="err" id="c-err"></div>
       <div class="photo-row" style="margin-top:12px"><button type="button" class="btn-teal" data-a="ok">Entrar</button><button type="button" class="btn-ghost" data-a="cancel" style="flex:1">Cancelar</button></div>
       <p class="hint" style="margin-bottom:0">Precisa de internet só agora. O acesso vale por 60 dias, inclusive em campo.</p></div>`;
     document.body.appendChild(box);
     box.querySelector('#c-u').focus();
+    box.querySelector('#c-ver').onchange = e => { box.querySelector('#c-s').type = e.target.checked ? 'text' : 'password'; };
     box.addEventListener('click', async e => {
       const a = e.target.closest('[data-a]'); if (!a) return;
       if (a.dataset.a === 'cancel'){ box.remove(); return; }

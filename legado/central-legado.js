@@ -116,6 +116,7 @@
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
         <input data-m="u" placeholder="Usuário" autocomplete="username" autocapitalize="none" style="padding:12px;font-size:16px;border:1.5px solid var(--line);border-radius:10px">
         <input data-m="s" type="password" placeholder="Senha" autocomplete="current-password" style="padding:12px;font-size:16px;border:1.5px solid var(--line);border-radius:10px">
+        <label style="display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px;font-weight:600;cursor:pointer"><input type="checkbox" data-ver-senha style="width:22px;height:22px;margin:0"> Mostrar senha</label>
         <div class="draft-actions"><button type="button" class="obra-chip" data-m="ok">Entrar</button><button type="button" class="obra-chip" data-m="cancel">Cancelar</button></div>
       </div></div>`;
     document.body.appendChild(box);
@@ -158,6 +159,7 @@
          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
            <input id="cl-usuario" placeholder="Usuário" autocomplete="username" autocapitalize="none" style="padding:12px;font-size:16px;border:1.5px solid var(--line);border-radius:10px">
            <input id="cl-senha" type="password" placeholder="Senha" autocomplete="current-password" style="padding:12px;font-size:16px;border:1.5px solid var(--line);border-radius:10px">
+           <label style="display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px;font-weight:600;cursor:pointer"><input type="checkbox" data-ver-senha style="width:22px;height:22px;margin:0"> Mostrar senha</label>
            <button type="button" class="obra-chip" data-cl="entrar">Entrar na central</button>
          </div>`;
   }
@@ -177,6 +179,12 @@
     }
   });
 
+  // "Mostrar senha": a caixa troca o campo de senha logo acima dela
+  document.addEventListener('change', e => {
+    if (!e.target.matches || !e.target.matches('[data-ver-senha]')) return;
+    const campo = e.target.closest('label').previousElementSibling;
+    if (campo && campo.tagName === 'INPUT') campo.type = e.target.checked ? 'text' : 'password';
+  });
   window.addEventListener('online', enviarFila);
   cartao();
   enviarFila();
