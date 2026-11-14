@@ -31,11 +31,14 @@ const normal = u => String(u || '').trim().toLowerCase();
 function obter(dados, usuario){ return ler(dados).find(x => x.usuario === normal(usuario)) || null; }
 function conferir(dados, usuario, senha){
   const u = obter(dados, usuario);
+  senha = String(senha || '').trim();            // espaço ao copiar e colar a senha não atrapalha
   if (!u || u.desativado || !senha) return null;
   const a = Buffer.from(hash(senha, u.sal), 'hex'), b = Buffer.from(u.hash, 'hex');
   return a.length === b.length && crypto.timingSafeEqual(a, b) ? u : null;
 }
-function senhaNova(){ return crypto.randomBytes(9).toString('base64url').replace(/[-_]/g, 'x').slice(0, 10); }
+// Sem letras que se confundem ao ler ou digitar no celular (I, l, 1, O, 0)
+const LETRAS = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function senhaNova(){ return Array.from(crypto.randomBytes(10), b => LETRAS[b % LETRAS.length]).join(''); }
 function definir(dados, usuario, papel, nome, senha){
   usuario = normal(usuario);
   if (!/^[a-z0-9._-]{3,30}$/.test(usuario)) throw new Error('Usuário: 3 a 30 letras minúsculas, números, ponto ou traço.');
