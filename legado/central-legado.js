@@ -89,6 +89,7 @@
   };
   function enviarParaCentral(tela){
     if (!C.sessao()){ entrar(() => enviarParaCentral(tela)); return; }
+    if (window.SM_INCLUIR_PENDENTES && !window.SM_INCLUIR_PENDENTES(tela)) return;
     runWithLoadingWord('btn-cloud-' + tela, async () => {
       paraCentral = true;
       try { await window[BUILD[tela]](); } finally { paraCentral = false; }

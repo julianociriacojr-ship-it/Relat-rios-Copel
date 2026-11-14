@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solarminas-relatorios-v24';
+const CACHE_NAME = 'solarminas-relatorios-v25';
 const ASSETS = [
   './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   // Módulo Inspeção SAS (PEE Copel): tudo local para funcionar em modo avião
@@ -35,6 +35,7 @@ const ASSETS = [
   './vendor/storage-shim.js',
   './vendor/legado/jspdf-2.5.1.umd.min.js',
   './vendor/legado/docx-8.5.0.umd.js',
+  './legado/incluir-pendentes.js',
   './legado/central-legado.js'
 ];
 
