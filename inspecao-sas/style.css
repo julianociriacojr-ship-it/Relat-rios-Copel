@@ -197,3 +197,5 @@ ul.conf li.bad span{ font-weight:700; color:#5c1a12; }
 ul.conf li .btn-line{ width:auto; margin:0; padding:8px 12px; min-height:44px; flex-shrink:0; }
 .sheet-actions{ display:flex; flex-direction:column; gap:10px; margin-top:16px; }
 .sheet-actions button{ width:100%; min-height:52px; }
+.doc-realce{ display:flex; align-items:center; gap:10px; padding:10px 14px; background:#111; color:#fff; font-size:15px; font-weight:700; min-height:48px; }
+.doc-realce input{ width:22px; height:22px; margin:0; }

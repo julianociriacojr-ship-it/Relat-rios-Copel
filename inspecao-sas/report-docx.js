@@ -24,9 +24,10 @@
   const PAGE = { w: 21 * CM, h: 29.7 * CM, top: 2.5 * CM, bottom: 2 * CM, left: 3 * CM, right: 2 * CM };
   const PX_PER_CM = 96 / 2.54;
   const CONTENT_W_CM = 16;
-  // Fotos em pé, uma por página, ocupando quase toda a área útil (16 x 19,5 cm).
+  // Fotos em pé, uma por página, ocupando quase toda a área útil (16 x 21,2 cm,
+  // como no modelo formatado VRI01).
   // Foto deitada também cabe: fica na largura da página, proporção preservada.
-  const PHOTO_H_CM = 19.5;
+  const PHOTO_H_CM = 21.2;
   const PHOTO_BOX = { w: CONTENT_W_CM * PX_PER_CM, h: PHOTO_H_CM * PX_PER_CM };
   const CHECKLIST_BOX = { w: CONTENT_W_CM * PX_PER_CM, h: 19 * PX_PER_CM };
 

@@ -64,7 +64,7 @@
       id: uid(), communityId: '', houseNumber: '', houseCode: '',
       inspectionDate: todayISO(), technician: CFG.defaultTechnician,
       docCode: CFG.docCode, rev: CFG.rev,
-      photos: { checklist: null, frente: null, estaca: null, estacaMarcada: null, estacaCodigo: null, chuveiro: null },
+      photos: { checklist: null, checklistOriginal: null, frente: null, estaca: null, estacaMarcada: null, estacaCodigo: null, chuveiro: null },
       estacaCircles: [],
       extraPhotos: [],
       observations: { chips: {}, freeText: '', finalText: '', finalEdited: false },
@@ -272,11 +272,62 @@
     } finally { done(); }
     renderStep();
   }
+  /* Checklist como documento: guarda a foto original e gera a versão
+     enquadrada (endireitada, fundo branco). Dá para reenquadrar depois. */
+  async function enquadrarChecklist(novo){
+    const i = S.insp;
+    const orig = await DB.getPhoto(i.photos.checklistOriginal);
+    if (!orig) return;
+    let quad = !novo && i.checklistQuad;
+    if (!quad){
+      const achado = await IMG.sugerirCantos(orig.blob).catch(() => null);
+      quad = IMG.deitarSeEmPe(achado || [{ x: 0.06, y: 0.06 }, { x: 0.94, y: 0.06 }, { x: 0.94, y: 0.94 }, { x: 0.06, y: 0.94 }], orig.width, orig.height);
+    }
+    const res = await IMG.openDocFrame(orig.blob, quad, i.checklistRealce);
+    if (!res){
+      // Cancelou na primeira vez: fica a foto inteira, como antes.
+      if (novo){
+        const r = await IMG.resizeToJpeg(orig.blob, CFG.photos.checklistMaxSide, CFG.photos.checklistQuality);
+        const rec = { id: uid(), inspectionId: i.id, slot: 'checklist', blob: r.blob, width: r.width, height: r.height, createdAt: new Date().toISOString() };
+        await DB.putPhoto(rec); await replaceSlot('checklist', rec.id); i.checklistQuad = null; await flushSave();
+      }
+      return renderStep();
+    }
+    const done = overlay('Endireitando a folha…');
+    try{
+      const r = await IMG.digitalizar(orig.blob, res.quad, CFG.photos.checklistMaxSide, CFG.photos.checklistQuality, res.realcar);
+      const rec = { id: uid(), inspectionId: i.id, slot: 'checklist', blob: r.blob, width: r.width, height: r.height, createdAt: new Date().toISOString() };
+      await DB.putPhoto(rec);
+      await replaceSlot('checklist', rec.id);
+      i.checklistQuad = res.quad; i.checklistRealce = res.realcar;
+      await flushSave();
+      toast('✓ Checklist enquadrado', false, 1600);
+    } catch(err){
+      console.error(err);
+      toast('Não foi possível enquadrar. A foto original continua salva: tente "Ajustar enquadramento".', true, 5000);
+    } finally { done(); }
+    renderStep();
+  }
   async function onPhotoInput(input){
     const file = input.files && input.files[0];
     const slot = input.dataset.slotInput;
     input.value = '';
     if (!file) return;
+    if (slot === 'checklist'){
+      const done = overlay('Processando foto…');
+      try{
+        const r = await IMG.resizeToJpeg(file, 2600, 0.85);      // original guardado para reenquadrar
+        const rec = { id: uid(), inspectionId: S.insp.id, slot: 'checklistOriginal', blob: r.blob, width: r.width, height: r.height, createdAt: new Date().toISOString() };
+        await DB.putPhoto(rec);
+        await replaceSlot('checklistOriginal', rec.id);
+        S.insp.checklistQuad = null;
+        await flushSave();
+      } catch(err){
+        console.error(err); toast('Não foi possível ler a foto. Tente novamente.', true, 4000); done(); return;
+      }
+      done();
+      return enquadrarChecklist(true);
+    }
     const done = overlay('Processando foto…');
     try{
       // Foto da galeria com GPS gravado: aproveita a coordenada se ainda não há.
@@ -755,8 +806,10 @@
 
     if (S.step === 2){
       html += `<section class="card"><h2>2. Checklist manuscrito</h2>
-        <div class="tip">📄 Pegue a folha <b>inteira</b>, <b>sem sombra</b>, com o celular na <b>horizontal</b>. As assinaturas continuam no papel.</div>
-        ${await slotHTML('checklist', 'Foto do checklist preenchido e assinado', 'Nenhuma foto do checklist ainda (obrigatória).')}
+        <div class="tip">📄 Folha <b>inteira</b> na foto, <b>sem sombra</b>, sobre um fundo mais escuro (mesa, chão). Depois da foto, o app acha os cantos e endireita a folha como documento. As assinaturas continuam no papel.</div>
+        ${await slotHTML('checklist', 'Foto do checklist preenchido e assinado', 'Nenhuma foto do checklist ainda (obrigatória).', {
+          extra: i.photos.checklistOriginal ? '<button type="button" class="btn-line" id="btn-enquadrar">📐 Ajustar enquadramento</button>' : ''
+        })}
       </section>`;
     }
 
@@ -924,6 +977,7 @@
     bindRegen();
 
     const circleBtn = document.getElementById('btn-circle'); if (circleBtn) circleBtn.onclick = editCircles;
+    const enqBtn = document.getElementById('btn-enquadrar'); if (enqBtn) enqBtn.onclick = () => enquadrarChecklist(false);
     const gpsBtn = document.getElementById('btn-gps'); if (gpsBtn) gpsBtn.onclick = startGps;
     const gpsMan = document.getElementById('btn-gps-manual'); if (gpsMan) gpsMan.onclick = saveManualGps;
     view.querySelectorAll('[data-slot-remove]').forEach(b => b.onclick = async () => {

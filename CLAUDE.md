@@ -146,6 +146,7 @@ Estrutura e ordem **idênticas** aos modelos: Capa, Sumário, Índice de Ilustra
 - Rodapé "Página X de Y" em todas as páginas, com campos PAGE e NUMPAGES.
 - Fonte única, 11 pt no corpo, texto justificado. Paleta laranja/vermelho do logo com moderação (títulos e filetes). Títulos numerados com espaçamento consistente.
 - Capa com mais respiração e hierarquia: dados principais em destaque.
+- Fotos em pé, uma por página (16 x 21,2 cm), como no modelo formatado `Relatorio_Visita_VRI01.docx` (23/11/2026). Legenda da Figura 2 com as coordenadas da estaca. Checklist enquadrado como documento (folha deitada, endireitada, fundo branco), na largura da página.
 - Legendas **"Figura"** (nunca "Figure"), abaixo da imagem, numeração sequencial. Imagens centralizadas, proporção preservada, sem quebrar entre páginas. Evitar título de seção órfão no fim da página.
 - Sumário e Índice de Ilustrações com número de página correto (campos TOC/PAGEREF ou paginação determinística com quebras de página fixas; testar abertura no Word). Se o texto das observações empurrar o documento para mais páginas, os números devem continuar corretos.
 - Checklist: imagem da foto ocupando a largura útil da página, proporção preservada.

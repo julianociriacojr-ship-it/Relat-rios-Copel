@@ -93,9 +93,10 @@
     const figures = [];    // { n, text, page }
     function figure(img, captionText, missingDesc){
       const n = figures.length + 1;
-      // Fotos em pé, uma por página, ocupando quase toda a área útil (160 x 200 mm).
-      // A primeira divide a página com o título da seção; as outras começam página nova.
-      const size = img ? fit(img, CW, 200) : { w: CW, h: 190 };
+      // Fotos em pé, uma por página, ocupando quase toda a área útil (160 x 212 mm,
+      // como no modelo formatado VRI01). A primeira divide a página com o título
+      // da seção; as outras começam página nova.
+      const size = img ? fit(img, CW, 212) : { w: CW, h: 200 };
       if (n > 1 || room() < size.h + 10) newPage();
       y += 2;
       if (img){
