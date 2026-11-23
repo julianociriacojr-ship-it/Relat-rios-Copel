@@ -294,8 +294,7 @@
         if (slot === 'estaca'){ S.insp.estacaCircles = []; await replaceSlot('estacaMarcada', null); }
       }
       await flushSave();
-      if (rec.height > rec.width) toast('⚠ Foto em pé. O padrão do relatório é horizontal (16:9): se puder, refaça com o celular deitado.', true, 5000);
-      else toast('✓ Foto salva no aparelho', false, 1400);
+      toast('✓ Foto salva no aparelho', false, 1400);
     } catch(err){
       console.error(err);
       toast('Não foi possível ler a foto. Tente novamente.', true, 4000);
@@ -350,6 +349,7 @@
     const semBackup = items.filter(needsBackup).length;
     const fc = OBS.getCommunity(filter);
     view.innerHTML = `
+      <div id="pronto-offline"></div>
       <div class="list-tools">
         <select id="filter" aria-label="Filtrar por comunidade">
           <option value="">Todas as comunidades (${S.list.length})</option>
@@ -384,6 +384,7 @@
     document.getElementById('btn-backup').onclick = () => backupInspections(items, fc ? fc.nome : 'todas');
     document.getElementById('restore-input').onchange = e => restoreBackups(e.target);
     bindCentralCard();
+    if (window.SM_PRONTO_OFFLINE) SM_PRONTO_OFFLINE(document.getElementById('pronto-offline'));
     const est = await DB.estimate();
     const persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted().catch(() => false) : false;
     const hint = document.getElementById('storage-hint');
@@ -777,7 +778,7 @@
         </div>`);
       }
       html += `<section class="card"><h2>3. Fotos</h2>
-        <div class="tip">📱 Todas as fotos com o celular <b>na horizontal</b> (16:9). No relatório, cada foto ocupa a largura da página, duas por página.</div>
+        <div class="tip">📱 Fotos com o celular <b>em pé</b> (vertical). No relatório, cada foto ocupa uma página inteira. A Figura 2 sai com as coordenadas da estaca na legenda.</div>
         ${await slotHTML('frente', 'Figura 1 · Frente da residência', 'Foto da frente da residência.')}
         ${await slotHTML('estaca', 'Figura 2 · Local da estaca', 'Foto do local da estaca. Depois, marque com o círculo vermelho.', {
           showId: i.photos.estacaMarcada || i.photos.estaca,

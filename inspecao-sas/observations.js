@@ -130,9 +130,18 @@
   }
 
   // Remove travessões longos (regra do documento).
+  // Legenda da Figura 2 com as coordenadas da estaca (graus decimais, com sinal).
+  // Sem leitura de GPS: marcador visível, nunca coordenada inventada.
+  function legendaEstaca(gps){
+    const ok = v => typeof v === 'number' && isFinite(v);
+    const f = v => v.toFixed(6).replace('.', ',');
+    return gps && ok(gps.lat) && ok(gps.lon)
+      ? `Local da estaca (Latitude ${f(gps.lat)}; Longitude ${f(gps.lon)})`
+      : 'Local da estaca (coordenadas: [COORDENADAS PENDENTES])';
+  }
   function noLongDash(s){ return String(s || '').replace(/\s*[—–]\s*/g, ' - '); }
 
-  const api = { CHIPS, getCommunity, normalizeHouseNumber, houseNumberError, buildHouseCode, buildRegistryCode, houseCodeComplete,
+  const api = { CHIPS, legendaEstaca, getCommunity, normalizeHouseNumber, houseNumberError, buildHouseCode, buildRegistryCode, houseCodeComplete,
     buildChipSentences, buildObservationText, noLongDash };
   root.SAS_OBS = api;
   if (typeof module !== 'undefined') module.exports = api;

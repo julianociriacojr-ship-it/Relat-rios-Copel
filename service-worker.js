@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solarminas-relatorios-v25';
+const CACHE_NAME = 'solarminas-relatorios-v26';
 const ASSETS = [
   './', './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   // Módulo Inspeção SAS (PEE Copel): tudo local para funcionar em modo avião
@@ -33,6 +33,7 @@ const ASSETS = [
   './vendor/jspdf.umd.min.js',
   './vendor/jszip.min.js',
   './vendor/storage-shim.js',
+  './vendor/pronto-offline.js',
   './vendor/legado/jspdf-2.5.1.umd.min.js',
   './vendor/legado/docx-8.5.0.umd.js',
   './legado/incluir-pendentes.js',
@@ -58,10 +59,20 @@ self.addEventListener('fetch', (e) => {
   if (new URL(e.request.url).pathname.startsWith('/api/')) return;
   e.respondWith(
     caches.match(e.request, { ignoreSearch: e.request.mode === 'navigate' }).then((cached) => {
+      // Abertura sem internet por um endereço que não está guardado (link com
+      // ?algo, sem o nome do arquivo etc.): entrega a página do app guardada.
+      if (!cached && e.request.mode === 'navigate'){
+        const pagina = new URL(e.request.url).pathname.includes('inspecao-sas') ? './inspecao-sas.html' : './index.html';
+        return fetch(e.request).catch(() => caches.match(pagina));
+      }
       const networkFetch = fetch(e.request)
         .then((resp) => {
-          const respClone = resp.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, respClone));
+          // Só guarda resposta boa do próprio app: erro ou página de outro site
+          // nunca substitui o que já funciona sem internet.
+          if (resp.ok && resp.type === 'basic'){
+            const respClone = resp.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, respClone));
+          }
           return resp;
         })
         .catch(() => cached);

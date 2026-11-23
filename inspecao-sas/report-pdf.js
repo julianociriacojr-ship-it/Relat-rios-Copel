@@ -93,9 +93,10 @@
     const figures = [];    // { n, text, page }
     function figure(img, captionText, missingDesc){
       const n = figures.length + 1;
-      // Fotos horizontais 16:9 na largura útil (160 x 90 mm): duas por página.
-      const size = img ? fit(img, CW, 92) : { w: CW, h: 90 };
-      if (room() < size.h + 10) newPage();
+      // Fotos em pé, uma por página, ocupando quase toda a área útil (160 x 200 mm).
+      // A primeira divide a página com o título da seção; as outras começam página nova.
+      const size = img ? fit(img, CW, 200) : { w: CW, h: 190 };
+      if (n > 1 || room() < size.h + 10) newPage();
       y += 2;
       if (img){
         doc.addImage(img.data, fmt(img), ML + (CW - size.w) / 2, y, size.w, size.h, undefined, 'FAST');
@@ -154,7 +155,7 @@
     heading('5 REGISTRO FOTOGRÁFICO', true);
     if (CFG.texts.fotosIntro) paragraph(CFG.texts.fotosIntro);
     figure(images.frente, 'Frente da residência', 'frente da residência');
-    figure(images.estaca, 'Local da estaca', 'local da estaca');
+    figure(images.estaca, OBS.legendaEstaca(insp.gps), 'local da estaca');
     figure(images.estacaCodigo, 'Estaca com o código da residência', 'estaca com o código da residência');
     // Figura 4: chuveiro, só quando houver foto (sem quadro vazio).
     if (images.chuveiro) figure(images.chuveiro, 'Chuveiro', 'chuveiro');
@@ -164,7 +165,7 @@
     });
 
     /* ---------------- 6 Observações ---------------- */
-    heading('6 OBSERVAÇÕES TÉCNICAS');
+    heading('6 OBSERVAÇÕES TÉCNICAS', true);
     paragraph(CFG.texts.observacoesP1);
     const obs = insp.observations || {};
     const finalText = (obs.finalText != null ? obs.finalText : OBS.buildObservationText(obs.chips, obs.freeText)).trim();

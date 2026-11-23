@@ -86,3 +86,17 @@ test('observações longas', async () => {
     checklist: jpg('checklist.jpg', 2200, 1238), frente: jpg('frente.jpg', 1600, 900), extras: []
   });
 });
+
+test('fotos em pé, uma por página, com as coordenadas na legenda da estaca', async () => {
+  const v = f => jpg(f, 900, 1600);
+  const { xml } = await build({ ...base, houseCode: 'POE04', houseNumber: '04', gps: { lat: -25.506488, lon: -48.380576, accuracy: 4 } }, {
+    checklist: jpg('checklist.jpg', 2200, 1238), frente: v('frente-vertical.jpg'), estaca: v('estaca-vertical.jpg'),
+    estacaCodigo: v('estaca-vertical.jpg'), chuveiro: v('frente-vertical.jpg'), extras: []
+  });
+  const visible = (xml.match(/<w:t[ >][^<]*/g) || []).join(' ');
+  assert.match(visible, /Local da estaca \(Latitude -25,506488; Longitude -48,380576\)/);
+  // Figuras 2, 3 e 4 começam página nova (a 1 fica com o título da seção)
+  assert.strictEqual((xml.match(/<w:pageBreakBefore\/>[\s\S]{0,400}?<w:drawing>/g) || []).length >= 3, true);
+  const { xml: sem } = await build({ ...base, houseCode: 'POE05', houseNumber: '05' }, { estaca: v('estaca-vertical.jpg'), extras: [] });
+  assert.match(sem, /Local da estaca \(coordenadas: \[COORDENADAS PENDENTES\]\)/);
+});

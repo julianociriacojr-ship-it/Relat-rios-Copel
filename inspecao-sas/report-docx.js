@@ -24,8 +24,10 @@
   const PAGE = { w: 21 * CM, h: 29.7 * CM, top: 2.5 * CM, bottom: 2 * CM, left: 3 * CM, right: 2 * CM };
   const PX_PER_CM = 96 / 2.54;
   const CONTENT_W_CM = 16;
-  // Fotos horizontais 16:9 na largura útil (16 x 9 cm): duas por página.
-  const PHOTO_BOX = { w: CONTENT_W_CM * PX_PER_CM, h: 9.2 * PX_PER_CM };
+  // Fotos em pé, uma por página, ocupando quase toda a área útil (16 x 19,5 cm).
+  // Foto deitada também cabe: fica na largura da página, proporção preservada.
+  const PHOTO_H_CM = 19.5;
+  const PHOTO_BOX = { w: CONTENT_W_CM * PX_PER_CM, h: PHOTO_H_CM * PX_PER_CM };
   const CHECKLIST_BOX = { w: CONTENT_W_CM * PX_PER_CM, h: 19 * PX_PER_CM };
 
   function fmtDate(iso){
@@ -100,11 +102,14 @@
       const bm = 'Figura_' + n;
       figures.push({ n, text: t(captionText), bm });
       const out = [];
+      // A primeira divide a página com o título da seção; as outras começam página nova.
+      const novaPagina = n > 1;
       if (img){
-        out.push(new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, keepLines: true, spacing: { before: 120, after: 60 },
+        out.push(new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, keepLines: true, pageBreakBefore: novaPagina, spacing: { before: 120, after: 60 },
           children: [imgRun(img, fit(img, PHOTO_BOX))] }));
       } else {
-        out.push(missingBox(missingDesc, 9));
+        if (novaPagina) out.push(new Paragraph({ pageBreakBefore: true, spacing: { after: 0 }, children: [] }));
+        out.push(missingBox(missingDesc, PHOTO_H_CM - 1));
       }
       out.push(new Paragraph({ style: 'Caption', alignment: AlignmentType.CENTER, keepLines: true, spacing: { before: 60, after: 280 },
         children: [new Bookmark({ id: bm, children: [new TextRun('Figura '), new SequentialIdentifier('Figura'), new TextRun(' - ' + t(captionText))] })] }));
@@ -191,7 +196,7 @@
     body.push(H1('5 REGISTRO FOTOGRÁFICO', true));
     if (CFG.texts.fotosIntro) body.push(P(CFG.texts.fotosIntro, { keepNext: true }));
     body.push(...figure(images.frente, 'Frente da residência', 'frente da residência'));
-    body.push(...figure(images.estaca, 'Local da estaca', 'local da estaca'));
+    body.push(...figure(images.estaca, OBS.legendaEstaca(insp.gps), 'local da estaca'));
     body.push(...figure(images.estacaCodigo, 'Estaca com o código da residência', 'estaca com o código da residência'));
     // Figura 4: chuveiro, só quando houver foto (sem quadro vazio).
     if (images.chuveiro) body.push(...figure(images.chuveiro, 'Chuveiro', 'chuveiro'));
@@ -201,7 +206,7 @@
     });
 
     /* ---------------- 6 Observações técnicas ---------------- */
-    body.push(H1('6 OBSERVAÇÕES TÉCNICAS'));
+    body.push(H1('6 OBSERVAÇÕES TÉCNICAS', true));
     body.push(P(CFG.texts.observacoesP1));
     const obs = insp.observations || {};
     const finalText = (obs.finalText != null ? obs.finalText : OBS.buildObservationText(obs.chips, obs.freeText)).trim();

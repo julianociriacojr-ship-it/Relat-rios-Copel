@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Solar Minas">
 <!-- Rascunhos no aparelho e bibliotecas locais (funciona sem internet) -->
 <script src="vendor/storage-shim.js"></script>
+<script src="vendor/pronto-offline.js"></script>
 <script src="vendor/legado/jspdf-2.5.1.umd.min.js"></script>
 <script src="vendor/legado/docx-8.5.0.umd.js"></script>
 <style>
@@ -226,6 +227,7 @@
 
   <!-- ================= TELA DE SELEÇÃO ================= -->
   <div class="screen active" id="screen-select">
+    <div id="pronto-offline"></div>
     <div class="select-intro">O que você vai preencher agora?</div>
     <button type="button" class="select-card" onclick="showScreen('rdo')">
       <div class="select-icon">📋</div>
@@ -3656,6 +3658,7 @@ if('serviceWorker' in navigator){
 }
 </script>
 
+<script>SM_PRONTO_OFFLINE(document.getElementById('pronto-offline'));</script>
 <!-- Item preenchido e não incluído entra no relatório ao gerar -->
 <script src="legado/incluir-pendentes.js"></script>
 <!-- Envio dos PDF/Word gerados para a central de relatórios (fila no aparelho) -->
